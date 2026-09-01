@@ -103,7 +103,7 @@ model load.
 
 - **This repo** — audio → text only. Stable `transcribe()` / `TranscriptResult`
   contract; backends may churn under it.
-- **Consumers** (e.g. voice-to-LIBERO, a future real-robot runtime) depend on
+- **Consumers** (e.g. voice-to-simulation, a future real-robot runtime) depend on
   `v2c` and add the policy client + environment loop themselves:
 
   ```python
