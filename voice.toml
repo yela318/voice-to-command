@@ -1,0 +1,34 @@
+# voice.toml — tuned for spoken-English commands.
+#
+#   v2c listen -c voice.toml
+#   v2c transcribe command.wav -c voice.toml
+#   Recognizer.from_config("voice.toml")
+#
+# Rationale: the library defaults (language = "auto", whisper task = "translate")
+# ask Whisper to language-detect and translate every clip. On a sub-second
+# English utterance that path is slow and hallucinates filler ("that's all",
+# "Thank you."). Pinning the language, using the English-only model, and running
+# the plain transcribe task removes both problems.
+
+timing = false
+
+[asr]
+backend  = "whisper"
+language = "en"            # pin it — no per-clip auto-detect
+
+[asr.whisper]
+model        = "base.en"   # English-only; fast cold-load. "small.en" is more
+                           # accurate if you can spare the extra load time.
+device       = "cpu"       # set to "cuda" if a GPU is available
+compute_type = ""          # "" = int8 on cpu, float16 on cuda
+
+[asr.options]
+task = "transcribe"        # not "translate" — input is already English
+
+[translate]
+mode = "never"             # English in, English out; skip the translator entirely
+
+[normalize]
+lowercase         = true
+strip_punctuation = true
+# phrase_map = { "black ball" = "black bowl" }   # fix recurring mishears here

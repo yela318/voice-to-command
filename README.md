@@ -49,32 +49,42 @@ group — see [docs/writing-a-backend.md](docs/writing-a-backend.md).
 Build a `RecognizerConfig` from a dict, a TOML file, or the environment.
 Credentials are **only** read from the environment, never from config.
 
+`voice.toml` in the repo root is a ready-made preset for **spoken-English**
+commands — pinned language, English-only model, plain transcribe task, no
+translator. Use it directly:
+
+```bash
+v2c listen -c voice.toml
+```
+```python
+Recognizer.from_config("voice.toml")
+```
+
 ```toml
 # voice.toml
 timing = false
 
 [asr]
 backend  = "whisper"
-language = "auto"          # "auto" | "en" | "ko" | ...  (naver_csr needs an explicit one)
+language = "en"           # "auto" | "en" | "ko" | ...  (naver_csr needs an explicit one)
 
 [asr.whisper]
-model        = "small"     # tiny | base | small | medium | large-v3
-device       = "cpu"       # cpu | cuda  (cuda auto-selects float16)
-compute_type = ""          # "" = pick from device
+model        = "base.en"  # tiny | base | small | medium | large-v3 (+ ".en" English-only)
+device       = "cpu"      # cpu | cuda  (cuda auto-selects float16)
+compute_type = ""         # "" = pick from device
+
+[asr.options]
+task = "transcribe"       # "translate" makes Whisper emit English in one step
 
 [translate]
-mode   = "auto"            # auto = translate iff spoken != target | always | never
+mode   = "never"          # auto = translate iff spoken != target | always | never
 target = "en"
 backend = "naver_papago"
 
 [normalize]
 lowercase        = true
 strip_punctuation = true
-phrase_map       = { "black ball" = "black bowl" }
-```
-
-```python
-Recognizer.from_config("voice.toml")
+# phrase_map     = { "black ball" = "black bowl" }
 ```
 
 Env overrides (applied on top of any config): `V2C_ASR_BACKEND`,
