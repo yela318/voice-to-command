@@ -82,6 +82,13 @@ def test_explicit_language_arg_passed_to_backend(wav_path):
     assert rec.backend.calls[0]["language"] == "ko"
 
 
+def test_backend_substage_timings_merged(wav_path):
+    rec = _rec(asr={"backend": "fake", "options": {"text": "go", "language": "en"}})
+    result = rec.transcribe(wav_path)
+    assert "asr" in result.timings  # total, measured by the Recognizer
+    assert "asr.fake_stage" in result.timings  # sub-stage, from the backend
+
+
 def test_unknown_backend_raises():
     from voice_to_command.errors import BackendNotAvailable
 

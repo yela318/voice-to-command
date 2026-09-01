@@ -17,3 +17,6 @@ def test_transcribe_silence_returns_string():
     result = rec.transcribe(silence)
     assert isinstance(result.text, str)
     assert "asr" in result.timings
+    # the whisper backend reports its own split
+    assert "asr.model_load" in result.timings
+    assert "asr.infer" in result.timings

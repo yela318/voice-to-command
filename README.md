@@ -1,136 +1,114 @@
 # voice-to-command
 
-Turn a spoken command into a normalized text string.
+Speak a command, get back a clean text string. `v2c` is the front half of a
+voice pipeline — **audio → ASR → (optional translation) → normalization**.
+Whatever consumes the text lives in another repo.
 
-`v2c` does **audio → ASR → (optional translation) → normalization**, and
-nothing else — no robot, policy, or simulation concepts. It's the reusable
-front half of a voice-driven pipeline; whatever consumes the text (a
-simulator, a VLA policy, a real robot) lives in a separate repo.
+## Presets
+
+Two ready-to-use configs in the repo root — pick by what you speak:
+
+| file | you speak | you get |
+|---|---|---|
+| `voice.toml` | English | English — English-only Whisper model, no translation |
+| `voice.ko.toml` | Korean | English — Whisper translates in one pass, no Papago or credentials |
+
+Every key in them is commented; copy one and edit.
+
+## Running it
+
+```bash
+pip install voice-to-command[whisper]        # add ,mic for microphone capture
+```
+
+```bash
+v2c transcribe FILE  -c voice.toml            # audio file  → text
+v2c listen           -c voice.ko.toml         # microphone (push-to-talk) → text
+v2c translate TEXT   --source ko --target en  # text only, runs the translator
+v2c backends                                  # list available backends
+v2c check [--backend whisper] [FILE]          # import + credential smoke test
+```
+
+`transcribe` / `listen` also take `--json`, `--timing`, and the overrides
+`--backend --model --device --language --target`.
+
+From Python — build the `Recognizer` once and reuse it, so the model stays
+loaded between calls:
 
 ```python
 from voice_to_command import Recognizer, record
 
-rec = Recognizer.from_dict({"asr": {"backend": "whisper"}})
-
-result = rec.transcribe("command.wav")     # or rec.transcribe(record())
-result.text          # "pick up the black bowl"  (normalized, target language)
-result.raw_text      # ASR output before normalization
-result.source_text   # text before translation, or None
-result.language      # detected / used spoken language
-result.timings       # {"asr": 1.83, "translate": 0.31}
+rec = Recognizer.from_config("voice.ko.toml")
+rec.transcribe("command.wav").text            # or: rec.transcribe(record()).text
 ```
 
-## Install
+`examples/listen_loop.py [config]` is a warm push-to-talk loop built on that.
 
-```bash
-pip install voice-to-command[whisper]          # local faster-whisper
-pip install voice-to-command[naver]            # Naver CLOVA CSR + Papago
-pip install voice-to-command[mic]              # microphone capture (needs PortAudio)
-pip install voice-to-command[whisper,mic]      # typical laptop setup
-pip install voice-to-command[all]
-```
+## Result
 
-Core install pulls only `numpy`; every backend dependency is an extra and
-imported lazily, so an unused backend costs nothing.
+`transcribe()` returns a `TranscriptResult`: `text` (final — normalized, target
+language), `raw_text` (before normalization), `source_text` (before
+translation, or `None`), `language`, `translated`, `segments`, and `timings`
+like `{"asr": 1.83, "asr.infer": 1.6, "translate": 0.31}`.
 
-## Backends
-
-| name | kind | extra | notes |
-|---|---|---|---|
-| `whisper` | ASR | `whisper` | local; `task="translate"` emits English in one step |
-| `naver_csr` | ASR | `naver` | cloud; needs `NCP_CLIENT_ID` / `NCP_CLIENT_SECRET`; requires an explicit language |
-| `naver_papago` | translator | `naver` | cloud; needs `NCP_PAPAGO_CLIENT_ID` / `NCP_PAPAGO_CLIENT_SECRET` |
-
-Third-party backends register under the `voice_to_command.asr_backends` entry-point
-group — see [docs/writing-a-backend.md](docs/writing-a-backend.md).
+---
 
 ## Configuration
 
-Build a `RecognizerConfig` from a dict, a TOML file, or the environment.
-Credentials are **only** read from the environment, never from config.
+Config is resolved in three layers, each overriding the previous: **defaults**
+→ **dict / TOML file** → **`V2C_*` env vars**. Credentials are read only from
+the environment, never from a config file.
 
-`voice.toml` in the repo root is a ready-made preset for **spoken-English**
-commands — pinned language, English-only model, plain transcribe task, no
-translator. Use it directly:
+Every key is documented inline in `voice.toml`. The full reference — all
+sections, env var names, normalization order — is in
+[docs/configuration.md](docs/configuration.md).
 
-```bash
-v2c listen -c voice.toml
-```
-```python
-Recognizer.from_config("voice.toml")
-```
+## Backends
 
-```toml
-# voice.toml
-timing = false
+Core install is `numpy` only; each backend is a lazily-imported extra.
 
-[asr]
-backend  = "whisper"
-language = "en"           # "auto" | "en" | "ko" | ...  (naver_csr needs an explicit one)
+| backend | kind | extra | needs |
+|---|---|---|---|
+| `whisper` | ASR | `[whisper]` | — (local; `task="translate"` emits English directly) |
+| `naver_csr` | ASR | `[naver]` | `NCP_CLIENT_ID` / `NCP_CLIENT_SECRET`, explicit language |
+| `naver_papago` | translator | `[naver]` | `NCP_PAPAGO_CLIENT_ID` / `NCP_PAPAGO_CLIENT_SECRET` |
 
-[asr.whisper]
-model        = "base.en"  # tiny | base | small | medium | large-v3 (+ ".en" English-only)
-device       = "cpu"      # cpu | cuda  (cuda auto-selects float16)
-compute_type = ""         # "" = pick from device
-
-[asr.options]
-task = "transcribe"       # "translate" makes Whisper emit English in one step
-
-[translate]
-mode   = "never"          # auto = translate iff spoken != target | always | never
-target = "en"
-backend = "naver_papago"
-
-[normalize]
-lowercase        = true
-strip_punctuation = true
-# phrase_map     = { "black ball" = "black bowl" }
-```
-
-Env overrides (applied on top of any config): `V2C_ASR_BACKEND`,
-`V2C_ASR_LANGUAGE`, `V2C_WHISPER_MODEL`, `V2C_WHISPER_DEVICE`,
-`V2C_WHISPER_COMPUTE_TYPE`, `V2C_TRANSLATE_MODE`,
-`V2C_TRANSLATE_TARGET`, `V2C_TIMING`.
-
-## CLI
-
-```bash
-v2c transcribe command.wav [--json] [--backend ...] [--model ...] [--device ...]
-v2c listen                         # push-to-talk mic → text
-v2c translate "안녕하세요" --source ko --target en
-v2c backends                       # list installed / available backends
-v2c check --backend whisper [command.wav]   # import + credential smoke test
-```
+Other extras: `[mic]` (microphone, needs PortAudio), `[audio]` (m4a/mp3
+decode), `[all]`. Writing your own: [docs/writing-a-backend.md](docs/writing-a-backend.md).
 
 ## Latency
 
-Every stage is timed into `result.timings` always; the `[timing] <stage>: <s>`
-lines are *printed* only when timing is on (`timing = true`, `--timing`, or
-`V2C_TIMING=1`). The first `whisper` call in a process also pays a one-time
-model load.
+The first `whisper` call in a process loads the model (cold start); keep one
+`Recognizer` alive (see `examples/listen_loop.py`) and later calls skip it.
+Turn timing on (`--timing`, `timing = true`, or `V2C_TIMING=1`) to see the
+split:
 
-## Relation to other repos
+```
+[timing] asr.model_load: 6.21s     # ~0 once the model is cached
+[timing] asr.infer: 1.83s          # decode + VAD + transcription
+[timing] asr: 8.04s                # total
+```
 
-- **This repo** — audio → text only. Stable `transcribe()` / `TranscriptResult`
-  contract; backends may churn under it.
-- **Consumers** (e.g. voice-to-simulation, a future real-robot runtime) depend on
-  `v2c` and add the policy client + environment loop themselves:
+To cut `asr.infer`: raise `cpu_threads`, use a smaller model (`tiny.en`,
+`distil-small.en`), or set `device = "cuda"`.
 
-  ```python
-  from voice_to_command import Recognizer, record
-  rec = Recognizer.from_config("voice.toml")
-  prompt = rec.transcribe(audio_or_path_or_record()).text
-  # ... hand `prompt` to the policy / rollout
-  ```
+## Consuming repos
+
+Downstream code depends on `v2c` and adds its own policy client + rollout loop.
+The `transcribe()` / `TranscriptResult` contract is stable; backends may change
+under it.
+
+```python
+rec = Recognizer.from_config("voice.toml")
+prompt = rec.transcribe(audio_or_path_or_record()).text
+```
 
 ## Development
 
 ```bash
 pip install -e .[dev]
-pytest                     # core tests, no heavy deps
-pytest -m "not slow and not network"   # same, explicit
+pytest                                    # core tests, no heavy deps
+ruff check src tests examples
 ```
 
-## License
-
-MIT — see [LICENSE](LICENSE).
+MIT licensed — see [LICENSE](LICENSE).

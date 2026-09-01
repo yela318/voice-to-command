@@ -17,6 +17,7 @@ class WhisperConfig:
     model: str = "small"  # tiny | base | small | medium | large-v3
     device: str = "cpu"  # cpu | cuda
     compute_type: str = ""  # "" -> float16 on cuda, int8 on cpu
+    cpu_threads: int = 0  # 0 -> faster-whisper default; raise to use more CPU cores
 
 
 @dataclasses.dataclass
@@ -83,6 +84,8 @@ class RecognizerConfig:
         out.asr.whisper.compute_type = env.get(
             "V2C_WHISPER_COMPUTE_TYPE", out.asr.whisper.compute_type
         )
+        if "V2C_WHISPER_CPU_THREADS" in env:
+            out.asr.whisper.cpu_threads = int(env["V2C_WHISPER_CPU_THREADS"])
         out.translate.mode = env.get("V2C_TRANSLATE_MODE", out.translate.mode)
         out.translate.target = env.get("V2C_TRANSLATE_TARGET", out.translate.target)
         if "V2C_TIMING" in env:

@@ -23,6 +23,25 @@ class MyBackend:
         return ASRResult(text="...", language=language, segments=(...,))
 ```
 
+### Optional: report your own timing split
+
+`ASRResult.timings` (a `{stage: seconds}` dict, default empty) lets a backend
+break its share down; the Recognizer merges it into `TranscriptResult.timings`
+next to the `asr` total. Use `voice_to_command.timing.stage`, which also prints
+`[timing]` lines when timing is on. Namespace the keys with an `asr.` prefix:
+
+```python
+from voice_to_command import timing
+
+def transcribe(self, audio, *, language):
+    t = {}
+    with timing.stage("asr.model_load", t):
+        model = self._load()
+    with timing.stage("asr.infer", t):
+        text = model.run(audio.samples(self.target_sample_rate)[0])
+    return ASRResult(text=text, language=language, timings=t)
+```
+
 ## In-tree
 
 Add a module under `voice_to_command/backends/`, decorate with `@register_asr("name")`,

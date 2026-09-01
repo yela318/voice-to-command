@@ -34,6 +34,10 @@ class ASRResult:
     text: str
     language: Optional[str] = None
     segments: Tuple[Segment, ...] = ()
+    # Optional per-stage latency the backend measured itself (e.g.
+    # {"asr.model_load": 6.1, "asr.infer": 1.8}). The Recognizer merges these
+    # into TranscriptResult.timings alongside its own "asr" total.
+    timings: Dict[str, float] = dataclasses.field(default_factory=dict)
 
 
 @dataclasses.dataclass(frozen=True)

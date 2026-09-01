@@ -21,6 +21,7 @@ model        = "base.en"   # English-only; fast cold-load. "small.en" is more
                            # accurate if you can spare the extra load time.
 device       = "cpu"       # set to "cuda" if a GPU is available
 compute_type = ""          # "" = int8 on cpu, float16 on cuda
+cpu_threads  = 0           # 0 = library default; e.g. 4 to use more CPU cores
 
 [asr.options]
 task = "transcribe"        # not "translate" — input is already English

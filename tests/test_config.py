@@ -40,11 +40,19 @@ def test_from_dict_nested_and_unknown_keys_go_to_options():
 def test_env_overrides(monkeypatch):
     monkeypatch.setenv("V2C_ASR_BACKEND", "naver_csr")
     monkeypatch.setenv("V2C_WHISPER_MODEL", "tiny")
+    monkeypatch.setenv("V2C_WHISPER_CPU_THREADS", "4")
     monkeypatch.setenv("V2C_TIMING", "1")
     cfg = RecognizerConfig().with_env_overrides()
     assert cfg.asr.backend == "naver_csr"
     assert cfg.asr.whisper.model == "tiny"
+    assert cfg.asr.whisper.cpu_threads == 4
     assert cfg.timing is True
+
+
+def test_cpu_threads_defaults_zero_and_reads_from_dict():
+    assert RecognizerConfig().asr.whisper.cpu_threads == 0
+    cfg = RecognizerConfig.from_dict({"asr": {"whisper": {"cpu_threads": 8}}})
+    assert cfg.asr.whisper.cpu_threads == 8
 
 
 def test_env_overrides_does_not_mutate_original(monkeypatch):

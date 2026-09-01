@@ -36,6 +36,7 @@ class FakeASRBackend:
             text=self.text,
             language=self.language,
             segments=(Segment(text=self.text, start=0.0, end=1.0),),
+            timings={"asr.fake_stage": 0.0},
         )
 
 

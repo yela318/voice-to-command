@@ -59,6 +59,9 @@ class Recognizer:
         timings = {}
         with timing.stage("asr", timings):
             asr = self.backend.transcribe(aud, language=want_lang)
+        # Fold in any per-stage split the backend measured (e.g. model_load vs
+        # infer); "asr" above stays as the total.
+        timings.update(getattr(asr, "timings", None) or {})
 
         raw = asr.text
         spoken = asr.language or want_lang
