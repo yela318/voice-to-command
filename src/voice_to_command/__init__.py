@@ -10,8 +10,8 @@ consumes the string is wired up elsewhere.
 """
 
 from .capture import record
-from .core import MODEL_SIZE, transcribe
+from .core import MODEL_SIZE, transcribe, warmup
 
 __version__ = "0.2.0"
 
-__all__ = ["transcribe", "record", "MODEL_SIZE", "__version__"]
+__all__ = ["transcribe", "warmup", "record", "MODEL_SIZE", "__version__"]

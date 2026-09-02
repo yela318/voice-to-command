@@ -18,7 +18,14 @@ pip install -e .          # add .[mic] for microphone input
 ```bash
 v2c voice_kor.m4a         # a file → English text on stdout
 v2c --listen             # the mic (Enter to start, Enter to stop) → English text
+v2c --serve              # stay resident: warm the model once, then loop
 ```
+
+`v2c <file>` and `v2c --listen` each spawn a fresh process, so they pay the
+model cold start (~5 s) every time. `v2c --serve` warms once and keeps going:
+mic push-to-talk on repeat when run in a terminal, or one audio-file path per
+line from stdin when piped (`printf 'a.m4a\nb.m4a\n' | v2c --serve`). Ctrl-C or
+EOF quits.
 
 ```python
 from voice_to_command import transcribe, record
@@ -27,9 +34,29 @@ transcribe("voice_kor.m4a")     # -> "Please give me carrots."
 transcribe(record())            # microphone
 ```
 
+For a long-running process, warm the model once at startup; every call after
+that is just infer time:
+
+```python
+from voice_to_command import transcribe, record, warmup
+
+warmup()                        # ~5 s once
+while True:
+    text = transcribe(record())  # model_load: 0.00s (cached)
+    ...                          # hand `text` to whatever comes next
+```
+
 `transcribe()` accepts an audio file path (wav/m4a/mp3/… — faster-whisper
-decodes it) or 16 kHz mono float32 samples. It returns the English string and
-prints `[<seconds>] <text>` to stderr.
+decodes it) or 16 kHz mono float32 samples, and returns the English string.
+Per-stage timing goes to stderr:
+
+```
+[timing] model_load: 6.21s (cold start)   # ~0.00s (cached) on later calls
+[timing] infer: 1.83s                      # decode + VAD + translation
+[timing] total: 8.04s
+```
+
+Set `V2C_TIMING=0` to silence it.
 
 ## Notes
 
