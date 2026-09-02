@@ -8,7 +8,7 @@ from voice_to_command import Recognizer
 def _rec(**overrides):
     cfg = {
         "asr": {"backend": "fake", "language": "auto"},
-        "translate": {"backend": "fake_translator", "target": "en", "mode": "auto"},
+        "translate": {"target": "en", "mode": "auto"},
     }
     for section, value in overrides.items():
         merged = dict(cfg.get(section, {}))
@@ -27,16 +27,18 @@ def test_plain_english_no_translation(wav_path):
     assert "asr" in result.timings
 
 
-def test_korean_gets_translated_via_translator(wav_path):
+def test_backend_without_self_translate_leaves_text_untranslated(wav_path):
+    # no external translator in this build: a backend that can't emit the
+    # target language just returns the spoken-language text.
     rec = _rec(asr={"backend": "fake", "options": {"text": "그릇을 집어", "language": "ko"}})
     result = rec.transcribe(wav_path)
-    assert result.translated is True
-    assert result.source_text == "그릇을 집어"
-    assert result.text == "[ko->en] 그릇을 집어"
-    assert "translate" in result.timings
+    assert result.translated is False
+    assert result.source_text is None
+    assert result.text == "그릇을 집어"
+    assert "translate" not in result.timings
 
 
-def test_backend_that_self_translates_skips_translator(wav_path):
+def test_backend_that_self_translates_is_marked_translated(wav_path):
     rec = _rec(
         asr={
             "backend": "fake",
@@ -50,14 +52,17 @@ def test_backend_that_self_translates_skips_translator(wav_path):
     assert "translate" not in result.timings
 
 
-def test_mode_never_disables_translation(wav_path):
+def test_mode_never_keeps_translated_false(wav_path):
     rec = _rec(
-        asr={"backend": "fake", "options": {"text": "그릇", "language": "ko"}},
-        translate={"backend": "fake_translator", "target": "en", "mode": "never"},
+        asr={
+            "backend": "fake",
+            "options": {"text": "pick up", "language": "ko", "can_translate_to": "en"},
+        },
+        translate={"target": "en", "mode": "never"},
     )
     result = rec.transcribe(wav_path)
     assert result.translated is False
-    assert result.text == "그릇"
+    assert result.text == "pick up"
 
 
 def test_normalization_applied(wav_path):

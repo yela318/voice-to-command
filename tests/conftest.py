@@ -7,7 +7,7 @@ import wave
 import numpy as np
 import pytest
 
-from voice_to_command.registry import register_asr, register_translator
+from voice_to_command.registry import register_asr
 from voice_to_command.types import ASRResult, Segment
 
 
@@ -38,14 +38,6 @@ class FakeASRBackend:
             segments=(Segment(text=self.text, start=0.0, end=1.0),),
             timings={"asr.fake_stage": 0.0},
         )
-
-
-@register_translator("fake_translator")
-class FakeTranslator:
-    name = "fake_translator"
-
-    def translate(self, text, *, source, target):
-        return "[{}->{}] {}".format(source, target, text)
 
 
 @pytest.fixture

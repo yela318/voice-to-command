@@ -7,8 +7,8 @@ Three ways to build a `RecognizerConfig`, in increasing precedence:
 3. `V2C_*` environment variables (applied by `with_env_overrides()`, which
    `Recognizer.__init__` always calls)
 
-Credentials are **never** part of config — backends read `NCP_CLIENT_ID`,
-`NCP_PAPAGO_CLIENT_ID`, etc. straight from the environment.
+Credentials are **never** part of config — a backend that needs them reads
+them straight from the environment.
 
 ## Sections
 
@@ -17,7 +17,7 @@ Credentials are **never** part of config — backends read `NCP_CLIENT_ID`,
 | key | default | meaning |
 |---|---|---|
 | `backend` | `"whisper"` | registered backend name |
-| `language` | `"auto"` | spoken language; `naver_csr` rejects `"auto"` |
+| `language` | `"auto"` | spoken language (`"auto"` lets whisper detect it) |
 | `whisper.model` | `"small"` | `tiny \| base \| small \| medium \| large-v3` |
 | `whisper.device` | `"cpu"` | `cpu \| cuda` (cuda ⇒ `float16` unless `compute_type` set) |
 | `whisper.compute_type` | `""` | override precision, e.g. `int8_float16` |
@@ -30,12 +30,15 @@ Any key under `[asr]` that isn't a known field is collected into
 
 | key | default | meaning |
 |---|---|---|
-| `mode` | `"auto"` | `auto` (translate iff spoken ≠ target) `\| always \| never` |
+| `mode` | `"auto"` | `auto` (count as translated iff spoken ≠ target) `\| always \| never` |
 | `target` | `"en"` | target language code |
-| `backend` | `"naver_papago"` | translator name |
 
-If the ASR backend reports `supports_translation_to(target)` (Whisper's
-`task="translate"` → English), the separate translator step is skipped.
+There is **no external translator** in this build. The only way to get
+`target`-language text is the ASR backend emitting it itself — whisper's
+`task="translate"` → English, for which `supports_translation_to("en")` is
+true. If the backend can't, the text stays in the spoken language and
+`result.translated` is `False`. (A `translate.backend` key in an old config
+is ignored.)
 
 ### `[normalize]`
 

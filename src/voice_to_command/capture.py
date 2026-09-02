@@ -10,7 +10,7 @@ import numpy as np
 from .audio import Audio
 from .errors import BackendNotAvailable
 
-DEFAULT_SAMPLE_RATE = 16000  # what Whisper and Naver CSR both expect
+DEFAULT_SAMPLE_RATE = 16000  # what Whisper expects
 
 
 def record(

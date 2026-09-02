@@ -1,19 +1,19 @@
 # voice-to-command
 
 Speak a command, get back a clean text string. `v2c` is the front half of a
-voice pipeline — **audio → ASR → (optional translation) → normalization**.
+voice pipeline — **audio → ASR → normalization** — on faster-whisper.
 Whatever consumes the text lives in another repo.
 
-## Presets
+Whisper-only. Naver CLOVA CSR + Papago live in a separate repo:
+[voice-to-command-NAVER-CSR](https://github.com/yela318/voice-to-command-NAVER-CSR).
 
-Two ready-to-use configs in the repo root — pick by what you speak:
+## Preset
 
-| file | you speak | you get |
-|---|---|---|
-| `voice.toml` | English | English — English-only Whisper model, no translation |
-| `voice.ko.toml` | Korean | English — Whisper translates in one pass, no Papago or credentials |
-
-Every key in them is commented; copy one and edit.
+`voice.toml` in the repo root is a ready-to-use config for spoken-English
+commands (English-only model, `task="transcribe"`, no translation). Every key
+is commented — copy it and edit. To have whisper translate other languages to
+English in one pass, set `language` to the spoken language and
+`[asr.options] task = "translate"`.
 
 ## Running it
 
@@ -27,14 +27,13 @@ pip install -e .[whisper]        # add ,mic for microphone capture
 
 ```bash
 v2c transcribe FILE  -c voice.toml            # audio file  → text
-v2c listen           -c voice.ko.toml         # microphone (push-to-talk) → text
-v2c translate TEXT   --source ko --target en  # text only, runs the translator
+v2c listen           -c voice.toml            # microphone (push-to-talk) → text
 v2c backends                                  # list available backends
-v2c check [--backend whisper] [FILE]          # import + credential smoke test
+v2c check [--backend whisper] [FILE]          # import + load smoke test
 ```
 
 `transcribe` / `listen` also take `--json`, `--timing`, and the overrides
-`--backend --model --device --language --target`.
+`--backend --model --device --language`.
 
 From Python — build the `Recognizer` once and reuse it, so the model stays
 loaded between calls:
@@ -42,7 +41,7 @@ loaded between calls:
 ```python
 from voice_to_command import Recognizer, record
 
-rec = Recognizer.from_config("voice.ko.toml")
+rec = Recognizer.from_config("voice.toml")
 rec.transcribe("command.wav").text            # or: rec.transcribe(record()).text
 ```
 
@@ -50,10 +49,10 @@ rec.transcribe("command.wav").text            # or: rec.transcribe(record()).tex
 
 ## Result
 
-`transcribe()` returns a `TranscriptResult`: `text` (final — normalized, target
-language), `raw_text` (before normalization), `source_text` (before
-translation, or `None`), `language`, `translated`, `segments`, and `timings`
-like `{"asr": 1.83, "asr.infer": 1.6, "translate": 0.31}`.
+`transcribe()` returns a `TranscriptResult`: `text` (final — normalized),
+`raw_text` (before normalization), `language`, `translated` (true when whisper
+emitted English via `task="translate"`), `source_text` (always `None` in this
+build), `segments`, and `timings` like `{"asr": 1.83, "asr.infer": 1.6}`.
 
 ---
 
@@ -69,16 +68,19 @@ sections, env var names, normalization order — is in
 
 ## Backends
 
-Core install is `numpy` only; each backend is a lazily-imported extra.
+Core install is `numpy` only; everything else is a lazily-imported extra.
 
-| backend | kind | extra | needs |
-|---|---|---|---|
-| `whisper` | ASR | `[whisper]` | — (local; `task="translate"` emits English directly) |
-| `naver_csr` | ASR | `[naver]` | `NCP_CLIENT_ID` / `NCP_CLIENT_SECRET`, explicit language |
-| `naver_papago` | translator | `[naver]` | `NCP_PAPAGO_CLIENT_ID` / `NCP_PAPAGO_CLIENT_SECRET` |
+| extra | pulls | for |
+|---|---|---|
+| `[whisper]` | faster-whisper | the `whisper` ASR backend (only built-in) |
+| `[mic]` | sounddevice | microphone capture (needs the PortAudio system lib) |
+| `[audio]` | av | decode m4a / mp3 / … to PCM |
+| `[toml]` | tomli | read TOML config on Python < 3.11 |
+| `[all]` | all of the above | |
 
-Other extras: `[mic]` (microphone, needs PortAudio), `[audio]` (m4a/mp3
-decode), `[all]`. Writing your own: [docs/writing-a-backend.md](docs/writing-a-backend.md).
+`whisper`'s `task="translate"` emits English directly. For Naver CLOVA CSR /
+Papago, use [voice-to-command-NAVER-CSR](https://github.com/yela318/voice-to-command-NAVER-CSR).
+Writing your own backend: [docs/writing-a-backend.md](docs/writing-a-backend.md).
 
 ## Latency
 

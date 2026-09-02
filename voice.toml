@@ -27,7 +27,7 @@ cpu_threads  = 0           # 0 = library default; e.g. 4 to use more CPU cores
 task = "transcribe"        # not "translate" — input is already English
 
 [translate]
-mode = "never"             # English in, English out; skip the translator entirely
+mode = "never"             # English in, English out; don't flag anything as translated
 
 [normalize]
 lowercase         = true

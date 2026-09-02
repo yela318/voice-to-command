@@ -1,8 +1,8 @@
 """Backend registry.
 
-Built-in backends are wired in the tables below and imported lazily (only
-when selected), so faster-whisper / requests stay optional. Third-party
-backends register via the "voice_to_command.asr_backends" entry-point group.
+Built-in backends are wired in the table below and imported lazily (only
+when selected), so faster-whisper stays optional. Third-party backends
+register via the "voice_to_command.asr_backends" entry-point group.
 
     from voice_to_command.registry import register_asr
 
@@ -21,14 +21,9 @@ from typing import Callable, Dict, Iterable
 from .errors import BackendNotAvailable
 
 _ASR: Dict[str, type] = {}
-_TRANSLATORS: Dict[str, type] = {}
 
 _BUILTIN_ASR = {
     "whisper": "voice_to_command.backends.whisper:WhisperBackend",
-    "naver_csr": "voice_to_command.backends.naver_csr:NaverCSRBackend",
-}
-_BUILTIN_TRANSLATORS = {
-    "naver_papago": "voice_to_command.backends.naver_papago:PapagoTranslator",
 }
 _ASR_ENTRYPOINT_GROUP = "voice_to_command.asr_backends"
 
@@ -37,15 +32,6 @@ def register_asr(name: str) -> Callable[[type], type]:
     def deco(cls: type) -> type:
         cls.name = name  # type: ignore[attr-defined]
         _ASR[name] = cls
-        return cls
-
-    return deco
-
-
-def register_translator(name: str) -> Callable[[type], type]:
-    def deco(cls: type) -> type:
-        cls.name = name  # type: ignore[attr-defined]
-        _TRANSLATORS[name] = cls
         return cls
 
     return deco
@@ -61,16 +47,6 @@ def get_asr_backend(name: str) -> type:
             return ep.load()
     raise BackendNotAvailable(
         "unknown ASR backend {!r}; available: {}".format(name, sorted(available_asr_backends()))
-    )
-
-
-def get_translator(name: str) -> type:
-    if name in _TRANSLATORS:
-        return _TRANSLATORS[name]
-    if name in _BUILTIN_TRANSLATORS:
-        return _import_target(name, _BUILTIN_TRANSLATORS[name])
-    raise BackendNotAvailable(
-        "unknown translator {!r}; available: {}".format(name, sorted(_BUILTIN_TRANSLATORS))
     )
 
 

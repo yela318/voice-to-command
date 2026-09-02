@@ -62,12 +62,6 @@ my_backend = "my_package.backend:MyBackend"
 After `pip install my-package`, `v2c backends` lists `my_backend` and
 `Recognizer.from_dict({"asr": {"backend": "my_backend"}})` works.
 
-## Translators
-
-Same idea with `@register_translator("name")` and a
-`translate(text, *, source, target) -> str` method. Only in-tree
-registration (`_BUILTIN_TRANSLATORS`) is wired today.
-
 ## Errors to raise
 
 `BackendNotAvailable` (missing dep), `CredentialsMissing`,

@@ -2,7 +2,6 @@
 
     v2c transcribe command.wav [--json]
     v2c listen
-    v2c translate "안녕하세요" --source ko --target en
     v2c backends
     v2c check --backend whisper [command.wav]
 """
@@ -19,7 +18,7 @@ from . import __version__
 from .config import RecognizerConfig
 from .errors import V2CError
 from .recognizer import Recognizer
-from .registry import available_asr_backends, get_asr_backend, get_translator
+from .registry import available_asr_backends, get_asr_backend
 
 
 def _add_common(p: argparse.ArgumentParser) -> None:
@@ -27,8 +26,7 @@ def _add_common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--language", help="override asr.language ('auto', 'en', 'ko', ...)")
     p.add_argument("--model", help="override asr.whisper.model")
     p.add_argument("--device", help="override asr.whisper.device (cpu|cuda)")
-    p.add_argument("--target", help="override translate.target")
-    p.add_argument("--timing", action="store_true", help="print [timing] lines")
+    p.add_argument("--timing", action="store_true", help="force [timing] lines on")
     p.add_argument("--json", action="store_true", help="print the full result as JSON")
 
 
@@ -42,8 +40,6 @@ def _build_config(args: argparse.Namespace) -> RecognizerConfig:
         cfg.asr.whisper.model = args.model
     if args.device:
         cfg.asr.whisper.device = args.device
-    if getattr(args, "target", None):
-        cfg.translate.target = args.target
     if args.timing:
         cfg.timing = True
     return cfg
@@ -67,13 +63,6 @@ def _cmd_listen(args: argparse.Namespace) -> int:
 
     rec = Recognizer(_build_config(args))
     _emit(rec.transcribe(record()), args.json)
-    return 0
-
-
-def _cmd_translate(args: argparse.Namespace) -> int:
-    cfg = RecognizerConfig.from_toml(args.config) if args.config else RecognizerConfig()
-    translator = get_translator(cfg.translate.backend)()
-    print(translator.translate(args.text, source=args.source, target=args.target))
     return 0
 
 
@@ -109,13 +98,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_l.add_argument("--backend", help="override asr.backend")
     _add_common(p_l)
     p_l.set_defaults(func=_cmd_listen)
-
-    p_tr = sub.add_parser("translate", help="translate text with the configured translator")
-    p_tr.add_argument("text")
-    p_tr.add_argument("--source", default="auto")
-    p_tr.add_argument("--target", default="en")
-    p_tr.add_argument("-c", "--config")
-    p_tr.set_defaults(func=_cmd_translate)
 
     p_b = sub.add_parser("backends", help="list available ASR backends")
     p_b.set_defaults(func=_cmd_backends)

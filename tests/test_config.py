@@ -19,7 +19,7 @@ def test_from_dict_nested_and_unknown_keys_go_to_options():
     cfg = RecognizerConfig.from_dict(
         {
             "asr": {
-                "backend": "naver_csr",
+                "backend": "custom_asr",
                 "language": "ko",
                 "whisper": {"model": "base", "device": "cuda"},
                 "timeout": 30,  # unknown ASRConfig field -> options
@@ -28,7 +28,7 @@ def test_from_dict_nested_and_unknown_keys_go_to_options():
             "timing": True,
         }
     )
-    assert cfg.asr.backend == "naver_csr"
+    assert cfg.asr.backend == "custom_asr"
     assert cfg.asr.whisper.model == "base"
     assert cfg.asr.whisper.device == "cuda"
     assert cfg.asr.options == {"timeout": 30}
@@ -37,13 +37,20 @@ def test_from_dict_nested_and_unknown_keys_go_to_options():
     assert cfg.timing is True
 
 
+def test_translate_unknown_keys_are_ignored():
+    # stale configs from the pre-split build may still carry translate.backend
+    cfg = RecognizerConfig.from_dict({"translate": {"target": "ko", "backend": "naver_papago"}})
+    assert cfg.translate.target == "ko"
+    assert not hasattr(cfg.translate, "backend")
+
+
 def test_env_overrides(monkeypatch):
-    monkeypatch.setenv("V2C_ASR_BACKEND", "naver_csr")
+    monkeypatch.setenv("V2C_ASR_BACKEND", "custom_asr")
     monkeypatch.setenv("V2C_WHISPER_MODEL", "tiny")
     monkeypatch.setenv("V2C_WHISPER_CPU_THREADS", "4")
     monkeypatch.setenv("V2C_TIMING", "1")
     cfg = RecognizerConfig().with_env_overrides()
-    assert cfg.asr.backend == "naver_csr"
+    assert cfg.asr.backend == "custom_asr"
     assert cfg.asr.whisper.model == "tiny"
     assert cfg.asr.whisper.cpu_threads == 4
     assert cfg.timing is True
@@ -56,7 +63,7 @@ def test_cpu_threads_defaults_zero_and_reads_from_dict():
 
 
 def test_env_overrides_does_not_mutate_original(monkeypatch):
-    monkeypatch.setenv("V2C_ASR_BACKEND", "naver_csr")
+    monkeypatch.setenv("V2C_ASR_BACKEND", "custom_asr")
     base = RecognizerConfig()
     _ = base.with_env_overrides()
     assert base.asr.backend == "whisper"

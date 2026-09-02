@@ -1,7 +1,7 @@
 """Configuration: plain dataclasses, buildable from a dict, a TOML file, or env.
 
-Credentials are never read from here -- backends read those straight from
-the environment (NCP_CLIENT_ID, NCP_PAPAGO_CLIENT_ID, ...).
+Credentials are never read from here -- a backend that needs them reads them
+straight from the environment.
 """
 
 from __future__ import annotations
@@ -30,9 +30,12 @@ class ASRConfig:
 
 @dataclasses.dataclass
 class TranslateConfig:
-    mode: str = "auto"  # auto (translate iff spoken != target) | always | never
+    # Gates whisper's own task="translate" output. auto = count it as a
+    # translation iff spoken != target; always | never force the flag.
+    # There is no external translator in this build -- if the backend can't
+    # emit `target` itself, the text is left in the spoken language.
+    mode: str = "auto"
     target: str = "en"
-    backend: str = "naver_papago"
 
 
 @dataclasses.dataclass
@@ -61,9 +64,12 @@ class RecognizerConfig:
         options.update({k: asr_in.pop(k) for k in list(asr_in) if k not in known_asr})
         asr = ASRConfig(whisper=WhisperConfig(**whisper_in), options=options, **asr_in)
 
+        known_translate = {f.name for f in dataclasses.fields(TranslateConfig)}
+        translate_in = {k: v for k, v in data.get("translate", {}).items() if k in known_translate}
+
         return cls(
             asr=asr,
-            translate=TranslateConfig(**data.get("translate", {})),
+            translate=TranslateConfig(**translate_in),
             normalize=NormalizeConfig(**data.get("normalize", {})),
             timing=bool(data.get("timing", True)),
         )

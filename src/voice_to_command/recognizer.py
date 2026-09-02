@@ -1,7 +1,9 @@
-"""The Recognizer: audio -> ASR -> (translate?) -> normalize -> TranscriptResult.
+"""The Recognizer: audio -> ASR -> normalize -> TranscriptResult.
 
 Holds one backend instance; the model loads lazily on the first transcribe()
-and is cached for the life of the Recognizer.
+and is cached for the life of the Recognizer. The only "translation" is
+whisper's own task="translate" (source speech -> English in one pass); there
+is no separate translator step in this build.
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ from . import timing
 from .audio import Audio, AudioLike
 from .config import RecognizerConfig
 from .normalize import normalize
-from .registry import get_asr_backend, get_translator
+from .registry import get_asr_backend
 from .types import TranscriptResult
 
 _TRANSLATE_ALWAYS = "always"
@@ -24,7 +26,6 @@ class Recognizer:
     def __init__(self, config: Optional[RecognizerConfig] = None):
         self.config = (config or RecognizerConfig()).with_env_overrides()
         self._backend = None
-        self._translator = None
 
     @classmethod
     def from_config(cls, path: Union[str, Path]) -> "Recognizer":
@@ -42,11 +43,6 @@ class Recognizer:
             builder = getattr(cls, "from_config", None)
             self._backend = builder(self.config.asr) if builder else cls()
         return self._backend
-
-    def _get_translator(self):
-        if self._translator is None:
-            self._translator = get_translator(self.config.translate.backend)()
-        return self._translator
 
     # -- main entry ------------------------------------------------------
     def transcribe(self, audio: AudioLike, *, language: Optional[str] = None) -> TranscriptResult:
@@ -72,25 +68,16 @@ class Recognizer:
             mode != _TRANSLATE_NEVER and spoken not in (None, target)
         )
 
-        text = raw
-        source_text = None
-        translated = False
-        if want_translation:
-            if self.backend.supports_translation_to(target):
-                # The backend already emitted target-language text (e.g. Whisper
-                # task='translate'); nothing more to do but record the fact.
-                translated = True
-            else:
-                source_text = raw
-                with timing.stage("translate", timings):
-                    text = self._get_translator().translate(raw, source=spoken, target=target)
-                translated = True
+        # The only path to target-language text is the backend emitting it
+        # itself (whisper task="translate" -> English). If it can't, the text
+        # stays in the spoken language and translated is False.
+        translated = want_translation and self.backend.supports_translation_to(target)
 
-        final = normalize(text, self.config.normalize)
+        final = normalize(raw, self.config.normalize)
         return TranscriptResult(
             text=final,
             raw_text=raw,
-            source_text=source_text,
+            source_text=None,
             language=spoken,
             translated=translated,
             timings=timings,

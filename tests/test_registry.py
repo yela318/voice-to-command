@@ -6,14 +6,13 @@ from voice_to_command.errors import BackendNotAvailable
 from voice_to_command.registry import (
     available_asr_backends,
     get_asr_backend,
-    get_translator,
     register_asr,
 )
 
 
 def test_builtin_names_listed():
     names = set(available_asr_backends())
-    assert {"whisper", "naver_csr"}.issubset(names)
+    assert "whisper" in names
 
 
 def test_fake_backend_registered_by_conftest():
@@ -24,11 +23,6 @@ def test_fake_backend_registered_by_conftest():
 def test_unknown_backend_raises():
     with pytest.raises(BackendNotAvailable):
         get_asr_backend("no-such-backend")
-
-
-def test_unknown_translator_raises():
-    with pytest.raises(BackendNotAvailable):
-        get_translator("no-such-translator")
 
 
 def test_register_sets_name_attr():

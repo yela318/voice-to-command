@@ -18,15 +18,13 @@ dependencies = [
 # Local faster-whisper backend. tokenizers pin is only needed on Python 3.8
 # (no prebuilt wheel for newer tokenizers there) -- see the openpi LIBERO venv.
 whisper = ["faster-whisper>=0.10", "tokenizers<0.21; python_version < '3.9'"]
-# Naver CLOVA CSR backend + Papago translator.
-naver = ["requests>=2.25"]
 # Live microphone capture (needs the PortAudio system library).
 mic = ["sounddevice>=0.4"]
 # Decode compressed audio (m4a/mp3/...) to PCM for backends that need raw samples.
 audio = ["av>=8"]
 # Read TOML config files on Python < 3.11 (3.11+ uses stdlib tomllib).
 toml = ["tomli>=1.2; python_version < '3.11'"]
-all = ["voice-to-command[whisper,naver,mic,audio,toml]"]
+all = ["voice-to-command[whisper,mic,audio,toml]"]
 dev = ["pytest>=7", "pytest-mock>=3", "ruff>=0.1"]
 
 [project.scripts]

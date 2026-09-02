@@ -10,7 +10,7 @@ class BackendNotAvailable(V2CError):
 
 
 class CredentialsMissing(V2CError):
-    """A cloud backend needs credentials that aren't in the environment."""
+    """A backend needs credentials that aren't in the environment."""
 
 
 class LanguageRequired(V2CError):
@@ -18,7 +18,7 @@ class LanguageRequired(V2CError):
 
 
 class AudioTooLong(V2CError):
-    """Audio exceeds a backend's hard limit (e.g. Naver CSR's ~60s / 3MB)."""
+    """Audio exceeds a backend's hard limit."""
 
 
 class DecodeError(V2CError):
