@@ -1,18 +1,21 @@
-"""Per-stage latency: always collected into a dict, printed only when enabled.
+"""Per-stage latency: always collected into a dict, and printed by default.
 
     t = {}
     with stage("asr", t):
         ...
-    # t == {"asr": 1.83}; prints "[timing] asr: 1.83s" iff enabled()
+    # t == {"asr": 1.83}; prints "[timing] asr: 1.83s" to stderr iff enabled()
 
-Off by default in the library. The Recognizer flips it from config.timing;
-the CLI has --timing; the env var V2C_TIMING overrides both.
+On by default. `[timing]` lines go to **stderr**, so stdout stays clean for
+`--json` output and pipes. The Recognizer sets it from config.timing (default
+true); the CLI has --timing; the env var V2C_TIMING overrides both
+(V2C_TIMING=0 silences).
 """
 
 from __future__ import annotations
 
 import contextlib
 import os
+import sys
 import time
 from typing import Dict, Optional
 
@@ -20,7 +23,7 @@ _OFF = {"0", "false", "no", "off", ""}
 
 
 def enabled() -> bool:
-    return os.environ.get("V2C_TIMING", "0").strip().lower() not in _OFF
+    return os.environ.get("V2C_TIMING", "1").strip().lower() not in _OFF
 
 
 def set_enabled(on: bool) -> None:
@@ -29,7 +32,7 @@ def set_enabled(on: bool) -> None:
 
 def log(message: str) -> None:
     if enabled():
-        print("[timing] {}".format(message), flush=True)
+        print("[timing] {}".format(message), file=sys.stderr, flush=True)
 
 
 @contextlib.contextmanager
@@ -42,4 +45,4 @@ def stage(name: str, sink: Optional[Dict[str, float]] = None):
         if sink is not None:
             sink[name] = round(elapsed, 4)
         if enabled():
-            print("[timing] {}: {:.2f}s".format(name, elapsed), flush=True)
+            print("[timing] {}: {:.2f}s".format(name, elapsed), file=sys.stderr, flush=True)

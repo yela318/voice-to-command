@@ -12,7 +12,7 @@
 # For a Korean-in / Korean-out setup instead, use task = "transcribe" and
 # translate.mode = "never".
 
-timing = false
+timing = true             # [timing] lines to stderr; set false to silence
 
 [asr]
 backend  = "whisper"

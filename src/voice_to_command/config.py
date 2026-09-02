@@ -48,7 +48,7 @@ class RecognizerConfig:
     asr: ASRConfig = dataclasses.field(default_factory=ASRConfig)
     translate: TranslateConfig = dataclasses.field(default_factory=TranslateConfig)
     normalize: NormalizeConfig = dataclasses.field(default_factory=NormalizeConfig)
-    timing: bool = False
+    timing: bool = True  # print [timing] lines to stderr; set false / V2C_TIMING=0 to silence
 
     # -- builders ------------------------------------------------------
     @classmethod
@@ -65,7 +65,7 @@ class RecognizerConfig:
             asr=asr,
             translate=TranslateConfig(**data.get("translate", {})),
             normalize=NormalizeConfig(**data.get("normalize", {})),
-            timing=bool(data.get("timing", False)),
+            timing=bool(data.get("timing", True)),
         )
 
     @classmethod

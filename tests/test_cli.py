@@ -21,9 +21,11 @@ def test_transcribe_plain_text(capsys, wav_path):
 def test_transcribe_json(capsys, wav_path):
     code = main(["transcribe", str(wav_path), "--backend", "fake", "--json"])
     assert code == 0
-    payload = json.loads(capsys.readouterr().out)
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)          # stdout stays clean JSON
     assert payload["raw_text"] == "pick up the black ball"
     assert "asr" in payload["timings"]
+    assert "[timing]" in captured.err           # timing on by default, printed to stderr
 
 
 def test_check_reports_importable(capsys, wav_path):

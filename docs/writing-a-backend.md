@@ -28,7 +28,8 @@ class MyBackend:
 `ASRResult.timings` (a `{stage: seconds}` dict, default empty) lets a backend
 break its share down; the Recognizer merges it into `TranscriptResult.timings`
 next to the `asr` total. Use `voice_to_command.timing.stage`, which also prints
-`[timing]` lines when timing is on. Namespace the keys with an `asr.` prefix:
+`[timing]` lines to stderr (on by default). Namespace the keys with an `asr.`
+prefix:
 
 ```python
 from voice_to_command import timing

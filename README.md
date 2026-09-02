@@ -17,8 +17,12 @@ Every key in them is commented; copy one and edit.
 
 ## Running it
 
+Clone and install editable, so `v2c` and the library track your checkout:
+
 ```bash
-pip install voice-to-command[whisper]        # add ,mic for microphone capture
+git clone https://github.com/yela318/voice-to-command.git
+cd voice-to-command
+pip install -e .[whisper]        # add ,mic for microphone capture
 ```
 
 ```bash
@@ -80,8 +84,9 @@ decode), `[all]`. Writing your own: [docs/writing-a-backend.md](docs/writing-a-b
 
 The first `whisper` call in a process loads the model (cold start); keep one
 `Recognizer` alive (see `examples/listen_loop.py`) and later calls skip it.
-Turn timing on (`--timing`, `timing = true`, or `V2C_TIMING=1`) to see the
-split:
+
+Every run prints a stage breakdown to **stderr** (stdout stays clean for
+`--json` and pipes). Silence it with `timing = false` or `V2C_TIMING=0`.
 
 ```
 [timing] asr.model_load: 6.21s     # ~0 once the model is cached
@@ -94,8 +99,10 @@ To cut `asr.infer`: raise `cpu_threads`, use a smaller model (`tiny.en`,
 
 ## Consuming repos
 
-Downstream code depends on `v2c` and adds its own policy client + rollout loop.
-The `transcribe()` / `TranscriptResult` contract is stable; backends may change
+Downstream code installs this repo (`pip install -e path/to/voice-to-command`,
+or `pip install "voice-to-command @ git+https://github.com/yela318/voice-to-command.git"`
+until it's on PyPI) and adds its own policy client + rollout loop. The
+`transcribe()` / `TranscriptResult` contract is stable; backends may change
 under it.
 
 ```python

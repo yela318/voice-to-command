@@ -10,7 +10,7 @@
 # "Thank you."). Pinning the language, using the English-only model, and running
 # the plain transcribe task removes both problems.
 
-timing = false
+timing = true             # [timing] lines to stderr; set false to silence
 
 [asr]
 backend  = "whisper"

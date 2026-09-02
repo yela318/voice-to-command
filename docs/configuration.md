@@ -44,9 +44,9 @@ punctuation → lowercase → collapse whitespace.
 
 ### top level
 
-| key | default |
-|---|---|
-| `timing` | `false` |
+| key | default | meaning |
+|---|---|---|
+| `timing` | `true` | print `[timing] <stage>: <s>` lines to **stderr**; `false` (or `V2C_TIMING=0`) silences them. `result.timings` is filled either way. |
 
 ## Environment overrides
 

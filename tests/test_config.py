@@ -12,7 +12,7 @@ def test_defaults():
     assert cfg.asr.backend == "whisper"
     assert cfg.asr.whisper.model == "small"
     assert cfg.translate.mode == "auto"
-    assert cfg.timing is False
+    assert cfg.timing is True
 
 
 def test_from_dict_nested_and_unknown_keys_go_to_options():
