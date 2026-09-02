@@ -26,11 +26,24 @@ pip install -e .[whisper]        # add ,mic for microphone capture
 ```
 
 ```bash
-v2c transcribe FILE  -c voice.toml            # audio file  → text
-v2c listen           -c voice.toml            # microphone (push-to-talk) → text
+v2c transcribe voice.m4a -c voice.toml        # audio file → text
+v2c listen               -c voice.toml        # microphone (push-to-talk) → text
 v2c backends                                  # list available backends
-v2c check [--backend whisper] [FILE]          # import + load smoke test
+v2c check [--backend whisper] [voice.m4a]     # import + load smoke test
 ```
+
+`voice.m4a` (English) and `voice_kor.m4a` (Korean) in the repo root are sample
+recordings to try the model on. faster-whisper decodes m4a itself, so no
+`[audio]` extra is needed for a file path.
+
+```bash
+v2c transcribe voice.m4a     -c voice.toml                    # English → English
+v2c transcribe voice_kor.m4a --language ko --model small      # Korean → Korean text
+```
+
+The Korean clip needs a multilingual model (`small`, not `base.en`). To get
+**English** out of it, use a config with `[asr.options] task = "translate"`
+(there is no CLI flag for `task`).
 
 `transcribe` / `listen` also take `--json`, `--timing`, and the overrides
 `--backend --model --device --language`.
@@ -42,7 +55,7 @@ loaded between calls:
 from voice_to_command import Recognizer, record
 
 rec = Recognizer.from_config("voice.toml")
-rec.transcribe("command.wav").text            # or: rec.transcribe(record()).text
+rec.transcribe("voice.m4a").text              # or: rec.transcribe(record()).text
 ```
 
 `examples/listen_loop.py [config]` is a warm push-to-talk loop built on that.

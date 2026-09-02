@@ -1,7 +1,7 @@
 """Transcribe an audio file.
 
-    pip install voice-to-command[whisper]
-    python examples/quickstart.py path/to/command.wav
+    pip install -e .[whisper]
+    python examples/quickstart.py voice.m4a
 """
 
 import sys
