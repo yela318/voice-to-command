@@ -1,34 +1,17 @@
-"""voice-to-command -- turn a spoken command into a normalized text string.
+"""voice-to-command -- Korean speech to English text, via faster-whisper.
 
-    from voice_to_command import Recognizer, record
+    from voice_to_command import transcribe, record
 
-    rec = Recognizer.from_dict({"asr": {"backend": "whisper"}})
-    result = rec.transcribe("command.wav")   # or rec.transcribe(record())
-    print(result.text)
+    transcribe("voice_kor.m4a")   # file  -> "Please give me carrots."
+    transcribe(record())          # mic   -> English text
 
-The library does audio -> ASR -> normalization, and nothing else: no robot,
-policy, or simulation concepts. ASR backends are pluggable (see
-voice_to_command/registry.py). The only translation is whisper's own
-task="translate" (source speech -> English in one pass).
+whisper's task="translate" does the Korean -> English in one pass. Whatever
+consumes the string is wired up elsewhere.
 """
 
-from . import errors
-from .audio import Audio
 from .capture import record
-from .config import RecognizerConfig
-from .recognizer import Recognizer
-from .types import ASRResult, Segment, TranscriptResult
+from .core import MODEL_SIZE, transcribe
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
-__all__ = [
-    "Recognizer",
-    "RecognizerConfig",
-    "Audio",
-    "record",
-    "TranscriptResult",
-    "ASRResult",
-    "Segment",
-    "errors",
-    "__version__",
-]
+__all__ = ["transcribe", "record", "MODEL_SIZE", "__version__"]

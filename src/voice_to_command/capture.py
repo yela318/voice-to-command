@@ -1,4 +1,4 @@
-"""Microphone capture. Push-to-talk only for now: Enter to start, Enter to stop.
+"""Microphone capture. Push-to-talk: Enter to start, Enter to stop.
 
 Needs the [mic] extra (sounddevice) and the PortAudio system library.
 """
@@ -7,34 +7,23 @@ from __future__ import annotations
 
 import numpy as np
 
-from .audio import Audio
-from .errors import BackendNotAvailable
-
-DEFAULT_SAMPLE_RATE = 16000  # what Whisper expects
+SAMPLE_RATE = 16000  # what whisper expects
 
 
-def record(
-    sample_rate: int = DEFAULT_SAMPLE_RATE,
-    *,
-    start_prompt: str = "Press Enter to start recording...",
-    stop_prompt: str = "Recording... press Enter again to stop.",
-) -> Audio:
-    """Block for a push-to-talk recording and return it as an Audio."""
+def record(sample_rate: int = SAMPLE_RATE) -> np.ndarray:
+    """Block for a push-to-talk recording; return 16 kHz mono float32 samples."""
     try:
         import sounddevice as sd
-    except OSError as exc:  # PortAudio missing -> sounddevice raises OSError on import
-        raise BackendNotAvailable(
+    except OSError as exc:  # PortAudio missing
+        raise RuntimeError(
             "microphone capture needs PortAudio "
-            "(Linux: apt-get install libportaudio2, Mac: brew install portaudio); "
-            + str(exc)
+            "(Linux: apt-get install libportaudio2, Mac: brew install portaudio); " + str(exc)
         ) from exc
     except ImportError as exc:
-        raise BackendNotAvailable(
-            "microphone capture needs the [mic] extra: pip install voice-to-command[mic]"
-        ) from exc
+        raise RuntimeError("microphone capture needs the [mic] extra: pip install -e .[mic]") from exc
 
-    input(start_prompt)
-    print(stop_prompt, flush=True)
+    input("Press Enter to start recording...")
+    print("Recording... press Enter again to stop.", flush=True)
 
     frames = []
 
@@ -48,6 +37,4 @@ def record(
 
     if not frames:
         raise RuntimeError("no audio was captured -- check the microphone input")
-
-    samples = np.concatenate(frames, axis=0).reshape(-1)
-    return Audio.from_samples(samples, sample_rate)
+    return np.concatenate(frames, axis=0).reshape(-1)

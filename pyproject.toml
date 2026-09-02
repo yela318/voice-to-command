@@ -4,47 +4,33 @@ build-backend = "hatchling.build"
 
 [project]
 name = "voice-to-command"
-version = "0.1.0"
-description = "Audio -> normalized text command, with pluggable ASR backends"
+version = "0.2.0"
+description = "Korean speech -> English text, via faster-whisper"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "MIT" }
-keywords = ["speech-to-text", "asr", "whisper", "voice-command", "robotics"]
+keywords = ["speech-to-text", "asr", "whisper", "translation", "korean"]
 dependencies = [
     "numpy>=1.19",
+    "faster-whisper>=0.10",
+    # no prebuilt wheel for newer tokenizers on Python 3.8
+    "tokenizers<0.21; python_version < '3.9'",
 ]
 
 [project.optional-dependencies]
-# Local faster-whisper backend. tokenizers pin is only needed on Python 3.8
-# (no prebuilt wheel for newer tokenizers there) -- see the openpi LIBERO venv.
-whisper = ["faster-whisper>=0.10", "tokenizers<0.21; python_version < '3.9'"]
 # Live microphone capture (needs the PortAudio system library).
 mic = ["sounddevice>=0.4"]
-# Decode compressed audio (m4a/mp3/...) to PCM for backends that need raw samples.
-audio = ["av>=8"]
-# Read TOML config files on Python < 3.11 (3.11+ uses stdlib tomllib).
-toml = ["tomli>=1.2; python_version < '3.11'"]
-all = ["voice-to-command[whisper,mic,audio,toml]"]
-dev = ["pytest>=7", "pytest-mock>=3", "ruff>=0.1"]
+dev = ["pytest>=7", "ruff>=0.1"]
 
 [project.scripts]
 v2c = "voice_to_command.cli:main"
-
-# Third-party ASR backends register themselves under this entry-point group,
-# e.g. a separate "voice-to-command-vosk" package would add:
-#   [project.entry-points."voice_to_command.asr_backends"]
-#   vosk = "v2c_vosk:VoskBackend"
-# The built-in backends are wired directly in voice_to_command/registry.py, not here.
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/voice_to_command"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = [
-    "slow: needs a heavy optional dependency (e.g. faster-whisper)",
-    "network: calls an external API and needs credentials",
-]
+markers = ["slow: downloads / runs the whisper model"]
 
 [tool.ruff]
 line-length = 100
@@ -52,4 +38,4 @@ target-version = "py38"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B"]
-ignore = ["E501"]  # long lines: left to the formatter / not worth churn here
+ignore = ["E501"]
