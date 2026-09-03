@@ -22,6 +22,10 @@ if TYPE_CHECKING:
 # mis-hear Korean; "small" is the practical floor, "medium"/"large-v3" cost more
 # for marginal gains on short commands. Override with V2C_MODEL.
 MODEL_SIZE = os.environ.get("V2C_MODEL", "small")
+DEVICE = os.environ.get("V2C_DEVICE") or "cpu"  # cpu | cuda | auto
+# Follows the device: int8 on CPU, float16 on a GPU. Override only for odd cards
+# -- an old Pascal (GTX 10xx) is slow at float16 and wants V2C_COMPUTE=int8.
+COMPUTE = os.environ.get("V2C_COMPUTE") or ("int8" if DEVICE == "cpu" else "float16")
 
 _model = None
 _TIMING_OFF = {"0", "false", "no", "off", ""}
@@ -40,7 +44,7 @@ def _load():
             from faster_whisper import WhisperModel
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("faster-whisper is required: pip install -e .") from exc
-        _model = WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
+        _model = WhisperModel(MODEL_SIZE, device=DEVICE, compute_type=COMPUTE)
     return _model
 
 

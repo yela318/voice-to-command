@@ -56,13 +56,22 @@ Per-stage timing goes to stderr:
 [timing] total: 8.04s
 ```
 
-Set `V2C_TIMING=0` to silence it.
+## Config (env vars)
+
+| var | default | |
+|---|---|---|
+| `V2C_MODEL` | `small` | faster-whisper size; multilingual only (no `.en`). `tiny`/`base` mis-hear Korean |
+| `V2C_DEVICE` | `cpu` | `cpu` \| `cuda` \| `auto` |
+| `V2C_COMPUTE` | follows the device | `int8` on CPU, `float16` on a GPU. Set it only for an odd card — an old Pascal (GTX 10xx) is slow at `float16` and wants `int8` |
+| `V2C_TIMING` | `1` | `0` silences the `[timing]` lines |
+
+```bash
+V2C_DEVICE=cuda v2c --serve             # GPU; needs a CUDA-built ctranslate2
+$env:V2C_DEVICE="cuda"; v2c --serve     # same on Windows PowerShell
+```
 
 ## Notes
 
-- **Model:** faster-whisper `small`, multilingual, CPU. `tiny`/`base` mis-hear
-  Korean. Change it with `V2C_MODEL=medium …` or by editing `MODEL_SIZE` in
-  `src/voice_to_command/core.py`.
 - **Cold start:** the first call downloads (~460 MB) and loads the model (~5 s),
   then caches it for the process — reuse one process for repeated calls.
 - **Direction:** whisper's translate task only ever produces **English**.
