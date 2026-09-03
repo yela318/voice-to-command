@@ -53,9 +53,35 @@ def _compute_type(device: str) -> str:
     return "float32"
 
 
+def _preload_cuda_libs() -> None:
+    """Make the pip-installed CUDA runtime findable without LD_LIBRARY_PATH.
+
+    CTranslate2 dlopen()s `libcublas.so.12` / `libcudnn*.so.9` by soname, but the
+    `nvidia-*-cu12` wheels drop them inside site-packages, where the loader does
+    not look -- and LD_LIBRARY_PATH only counts if it was set before the process
+    started. Loading them here with RTLD_GLOBAL means the later dlopen finds them
+    already resident. Best effort: anything missing just stays missing.
+    """
+    import ctypes
+    import glob
+    import importlib.util
+
+    spec = importlib.util.find_spec("nvidia")
+    if spec is None:
+        return
+    for root in spec.submodule_search_locations or ():
+        for so in sorted(glob.glob(os.path.join(root, "*", "lib", "*.so.*"))):
+            try:
+                ctypes.CDLL(so, mode=ctypes.RTLD_GLOBAL)
+            except OSError:
+                pass
+
+
 def _load():
     global _model, COMPUTE
     if _model is None:
+        if DEVICE != "cpu":
+            _preload_cuda_libs()
         try:
             from faster_whisper import WhisperModel
         except ImportError as exc:  # pragma: no cover

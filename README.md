@@ -66,9 +66,14 @@ Per-stage timing goes to stderr:
 | `V2C_TIMING` | `1` | `0` silences the `[timing]` lines |
 
 ```bash
-V2C_DEVICE=cuda v2c --serve             # GPU; needs a CUDA-built ctranslate2
+V2C_DEVICE=cuda v2c --serve             # GPU
 $env:V2C_DEVICE="cuda"; v2c --serve     # same on Windows PowerShell
 ```
+
+CTranslate2 needs the **CUDA 12** runtime (`libcublas.so.12`, cuDNN 9) — a CUDA
+13 install does not satisfy it, the soname differs. `pip install
+nvidia-cublas-cu12 nvidia-cudnn-cu12` is enough: `_load()` preloads those wheels
+itself, so `LD_LIBRARY_PATH` does not have to be set.
 
 ## Notes
 

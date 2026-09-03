@@ -10,7 +10,9 @@ Reduced to the minimum: **Korean speech → English text via faster-whisper
   really runs) and `v2c --serve` (stay resident: mic loop on a TTY, one file
   path per line from stdin when piped).
 - Per-stage `[timing]` lines on stderr (`model_load` / `infer` / `total`).
-- `V2C_DEVICE` for GPU inference (default `cpu`). The compute type is picked
+- `V2C_DEVICE` for GPU inference (default `cpu`). On a non-CPU device `_load()`
+  preloads the `nvidia-*-cu12` wheels so CTranslate2 finds `libcublas.so.12`
+  without `LD_LIBRARY_PATH`. The compute type is picked
   from `ctranslate2.get_supported_compute_types()` — `float16` where the card
   does it efficiently, else `int8`; `V2C_COMPUTE` forces a specific one.
 
