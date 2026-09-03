@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 # for marginal gains on short commands. Override with V2C_MODEL.
 MODEL_SIZE = os.environ.get("V2C_MODEL", "small")
 DEVICE = os.environ.get("V2C_DEVICE") or "cpu"  # cpu | cuda | auto
-# Follows the device: int8 on CPU, float16 on a GPU. Override only for odd cards
-# -- an old Pascal (GTX 10xx) is slow at float16 and wants V2C_COMPUTE=int8.
-COMPUTE = os.environ.get("V2C_COMPUTE") or ("int8" if DEVICE == "cpu" else "float16")
+# None -> _load() asks CTranslate2 what this card actually supports. Set
+# V2C_COMPUTE only to force something else.
+COMPUTE = os.environ.get("V2C_COMPUTE") or None
 
 _model = None
 _TIMING_OFF = {"0", "false", "no", "off", ""}
@@ -37,13 +37,30 @@ def _log(stage: str, seconds: float, note: str = "") -> None:
         print("[timing] {}: {:.2f}s{}".format(stage, seconds, tail), file=sys.stderr, flush=True)
 
 
+def _compute_type(device: str) -> str:
+    """Best compute type CTranslate2 will actually accept here. float16 where the
+    card does it efficiently (Ada/Blackwell), int8 on CPU and on older cards --
+    CT2 raises ValueError for float16 below compute capability 7.0 (Pascal).
+    """
+    import ctranslate2
+
+    if device == "auto":
+        device = "cuda" if ctranslate2.get_cuda_device_count() else "cpu"
+    supported = ctranslate2.get_supported_compute_types(device)
+    for candidate in ("float16", "int8"):
+        if candidate in supported:
+            return candidate
+    return "float32"
+
+
 def _load():
-    global _model
+    global _model, COMPUTE
     if _model is None:
         try:
             from faster_whisper import WhisperModel
         except ImportError as exc:  # pragma: no cover
             raise RuntimeError("faster-whisper is required: pip install -e .") from exc
+        COMPUTE = COMPUTE or _compute_type(DEVICE)
         _model = WhisperModel(MODEL_SIZE, device=DEVICE, compute_type=COMPUTE)
     return _model
 
@@ -55,7 +72,16 @@ def warmup() -> None:
     """
     import numpy as np
 
-    transcribe(np.zeros(16000, dtype=np.float32))
+    t0 = time.perf_counter()
+    model = _load()
+    # vad_filter=False on purpose: VAD drops a silent clip entirely, no segment
+    # is produced and the encoder never runs -- which hides a broken CUDA setup
+    # until the first real recording. Consume the generator so it actually runs.
+    segments, _ = model.transcribe(
+        np.zeros(16000, dtype=np.float32), language="ko", task="translate", vad_filter=False
+    )
+    list(segments)
+    _log("warmup", time.perf_counter() - t0, "({}/{})".format(DEVICE, COMPUTE))
 
 
 def transcribe(audio: Union[str, "np.ndarray"]) -> str:
@@ -82,7 +108,8 @@ def transcribe(audio: Union[str, "np.ndarray"]) -> str:
     text = " ".join(s.text.strip() for s in segments).strip()
     t_infer = time.perf_counter() - t1
 
-    _log("model_load", t_load, "(cold start)" if cold else "(cached)")
+    _log("model_load", t_load, "({}, {}/{})".format(
+        "cold start" if cold else "cached", DEVICE, COMPUTE))
     _log("infer", t_infer)
     _log("total", t_load + t_infer)
     return text

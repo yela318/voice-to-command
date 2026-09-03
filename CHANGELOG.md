@@ -6,11 +6,13 @@ Reduced to the minimum: **Korean speech → English text via faster-whisper
 `task="translate"`**, file or microphone input.
 
 ### Added
-- `warmup()` (load the model + one throwaway inference) and `v2c --serve` (stay
-  resident: mic loop on a TTY, one file path per line from stdin when piped).
+- `warmup()` (load the model + one throwaway inference, VAD off so the encoder
+  really runs) and `v2c --serve` (stay resident: mic loop on a TTY, one file
+  path per line from stdin when piped).
 - Per-stage `[timing]` lines on stderr (`model_load` / `infer` / `total`).
-- `V2C_DEVICE` for GPU inference (default `cpu`). `V2C_COMPUTE` follows it
-  (`int8` on CPU, `float16` on a GPU) and only needs setting for an odd card.
+- `V2C_DEVICE` for GPU inference (default `cpu`). The compute type is picked
+  from `ctranslate2.get_supported_compute_types()` — `float16` where the card
+  does it efficiently, else `int8`; `V2C_COMPUTE` forces a specific one.
 
 ### Removed
 - The pluggable backend registry, the config system (`RecognizerConfig` / TOML

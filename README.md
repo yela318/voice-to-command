@@ -62,7 +62,7 @@ Per-stage timing goes to stderr:
 |---|---|---|
 | `V2C_MODEL` | `small` | faster-whisper size; multilingual only (no `.en`). `tiny`/`base` mis-hear Korean |
 | `V2C_DEVICE` | `cpu` | `cpu` \| `cuda` \| `auto` |
-| `V2C_COMPUTE` | follows the device | `int8` on CPU, `float16` on a GPU. Set it only for an odd card — an old Pascal (GTX 10xx) is slow at `float16` and wants `int8` |
+| `V2C_COMPUTE` | auto | picked from what CTranslate2 reports for the device: `float16` on a card that does it efficiently, else `int8`. Set it only to force something else |
 | `V2C_TIMING` | `1` | `0` silences the `[timing]` lines |
 
 ```bash
