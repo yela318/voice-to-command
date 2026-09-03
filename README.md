@@ -63,6 +63,7 @@ Per-stage timing goes to stderr:
 | `V2C_MODEL` | `small` | faster-whisper size; multilingual only (no `.en`). `tiny`/`base` mis-hear Korean |
 | `V2C_DEVICE` | `cpu` | `cpu` \| `cuda` \| `auto` |
 | `V2C_COMPUTE` | auto | picked from what CTranslate2 reports for the device: `float16` on a card that does it efficiently, else `int8`. Set it only to force something else |
+| `V2C_MIC` | system default | which input to record from: a device index or a substring of its name (`V2C_MIC=Britz`). List them with `python -c "import sounddevice as sd; print(sd.query_devices())"` |
 | `V2C_TIMING` | `1` | `0` silences the `[timing]` lines |
 
 ```bash
@@ -74,6 +75,12 @@ CTranslate2 needs the **CUDA 12** runtime (`libcublas.so.12`, cuDNN 9) — a CUD
 13 install does not satisfy it, the soname differs. `pip install
 nvidia-cublas-cu12 nvidia-cudnn-cu12` is enough: `_load()` preloads those wheels
 itself, so `LD_LIBRARY_PATH` does not have to be set.
+
+```bash
+conda install -c conda-forge portaudio
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+V2C_DEVICE=cuda v2c --serve
+```
 
 ## Notes
 

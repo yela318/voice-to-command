@@ -16,6 +16,15 @@ Reduced to the minimum: **Korean speech → English text via faster-whisper
   from `ctranslate2.get_supported_compute_types()` — `float16` where the card
   does it efficiently, else `int8`; `V2C_COMPUTE` forces a specific one.
 
+### Added
+- `V2C_MIC` picks the input device by index or name substring; `record()` also
+  prints which device and rate it settled on to stderr.
+
+### Fixed
+- `record()` no longer forces 16 kHz on the input device. Most USB headsets only
+  offer 44100/48000 and PortAudio answered with `Invalid sample rate` (-9997);
+  it now records at the device's own rate and resamples to 16 kHz.
+
 ### Removed
 - The pluggable backend registry, the config system (`RecognizerConfig` / TOML
   files), text normalization, the timing module, `Recognizer` /
