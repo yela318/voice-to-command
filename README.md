@@ -20,6 +20,8 @@ pip install -e .          # add .[mic] for microphone input
 v2c sample/voice_kor.m4a  # a file → English text on stdout
 v2c --listen             # the mic (Enter to start, Enter to stop) → English text
 v2c --serve              # stay resident: warm the model once, then loop
+v2c --serve --http       # GPU box: HTTP inference server for remote clients
+v2c <file> --server_ip HOST   # run inference on that remote server, not locally
 ```
 
 `v2c <file>` and `v2c --listen` each spawn a fresh process, so they pay the
@@ -66,6 +68,9 @@ Per-stage timing goes to stderr:
 | `V2C_DEVICE` | `cpu` | `cpu` \| `cuda` \| `auto` |
 | `V2C_COMPUTE` | auto | picked from what CTranslate2 reports for the device: `float16` on a card that does it efficiently, else `int8`. Set it only to force something else |
 | `V2C_MIC` | system default | which input to record from: a device index or a substring of its name (`V2C_MIC=Britz`). List them with `python -c "import sounddevice as sd; print(sd.query_devices())"` |
+| `V2C_SERVER_IP` | — | run inference on a remote `v2c --serve --http` host instead of loading the model locally (same as `--server_ip`) |
+| `V2C_SERVER_PORT` | `8756` | port for the server (both the `--serve --http` listener and the client, same as `--server_port`) |
+| `V2C_HTTP_HOST` | `0.0.0.0` | interface the `--serve --http` listener binds to |
 | `V2C_TIMING` | `1` | `0` silences the `[timing]` lines |
 
 ```bash
@@ -83,6 +88,29 @@ conda install -c conda-forge portaudio
 export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 V2C_DEVICE=cuda v2c --serve
 ```
+
+## Remote GPU
+
+Run the model on a box that has a GPU, drive it from a laptop that does not.
+The client never loads the model — it ships the audio bytes over plain HTTP and
+prints what comes back. stdlib only, no auth: use it on a trusted LAN, or tunnel
+it over SSH.
+
+```bash
+# on the GPU box — warm once, then answer /transcribe until Ctrl-C
+V2C_DEVICE=cuda v2c --serve --http            # binds 0.0.0.0:8756
+
+# on the laptop — inference happens on gpu-box, text comes back
+v2c sample/voice_kor.m4a --server_ip gpu-box
+v2c --listen             --server_ip gpu-box  # mic is local, inference remote
+v2c --serve              --server_ip gpu-box  # resident client loop
+export V2C_SERVER_IP=gpu-box                  # or set it once and drop the flag
+```
+
+`--server_port` / `V2C_SERVER_PORT` (default `8756`) sets the port on both ends.
+Across an untrusted network, tunnel instead of exposing the port:
+`ssh -N -L 8756:localhost:8756 gpu-box`, then `--server_ip 127.0.0.1`. To keep
+the server up across reboots, wrap `v2c --serve --http` in a systemd unit.
 
 ## Notes
 
@@ -103,7 +131,8 @@ V2C_DEVICE=cuda v2c --serve
 src/voice_to_command/
   core.py      _load() caches the model; transcribe(path | samples) -> str
   capture.py   record() — push-to-talk mic, returns float32 samples
-  cli.py       v2c <file> | v2c --listen
+  remote.py    serve_http() + transcribe_remote() — run inference on a GPU box
+  cli.py       v2c <file> | v2c --listen | v2c --serve [--http] [--server_ip …]
 sample/        TTS clips: voice_kor* / voice_eng_* pairs, voice.m4a
 ```
 
