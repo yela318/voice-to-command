@@ -1,10 +1,11 @@
 # voice-to-command
 
-Korean (or English) speech → English text, in one step, via
-[faster-whisper](https://github.com/SYSTRAN/faster-whisper) (`task="translate"`).
-Give it a mic recording or an audio file; get back an English string. The source
-language is auto-detected, so Korean and English clips both work. Whatever
-consumes the string is wired up elsewhere.
+Speech → text via [faster-whisper](https://github.com/SYSTRAN/faster-whisper).
+Give it a mic recording or an audio file; get back a string. By default it
+transcribes in the language spoken — Korean stays Korean, English stays English,
+source language auto-detected — and `--translate` / `translate=True` switches it
+to whisper's `task="translate"` and emits English. Whatever consumes the string
+is wired up elsewhere.
 
 ## Install
 
@@ -17,9 +18,10 @@ pip install -e .          # add .[mic] for microphone input
 ## Use
 
 ```bash
-v2c sample/voice_kor.m4a  # a file → English text on stdout
-v2c --listen             # the mic (Enter to start, Enter to stop) → English text
+v2c sample/voice_kor.m4a  # a file → text on stdout (Korean in → Korean out)
+v2c --listen             # the mic (Enter to start, Enter to stop) → text
 v2c --serve              # stay resident: warm the model once, then loop
+v2c sample/voice_kor.m4a --translate   # → English instead
 v2c --serve --http       # GPU box: HTTP inference server for remote clients
 v2c <file> --server_ip HOST   # run inference on that remote server, not locally
 ```
@@ -33,8 +35,9 @@ EOF quits.
 ```python
 from voice_to_command import transcribe, record
 
-transcribe("sample/voice_kor.m4a")   # -> "Please give me carrots."
-transcribe(record())            # microphone
+transcribe("sample/voice_kor.m4a")                  # -> "당근을 주세요."
+transcribe("sample/voice_kor.m4a", translate=True)  # -> "Please give me carrots."
+transcribe(record())                                # microphone
 ```
 
 For a long-running process, warm the model once at startup; every call after
@@ -50,7 +53,7 @@ while True:
 ```
 
 `transcribe()` accepts an audio file path (wav/m4a/mp3/… — faster-whisper
-decodes it) or 16 kHz mono float32 samples, and returns the English string.
+decodes it) or 16 kHz mono float32 samples, and returns the string.
 Per-stage timing goes to stderr:
 
 ```
@@ -65,6 +68,7 @@ Per-stage timing goes to stderr:
 |---|---|---|
 | `V2C_MODEL` | `small` | faster-whisper size; multilingual only (no `.en`). `tiny`/`base` mis-hear Korean |
 | `V2C_LANG` | auto | source language. Unset = auto-detect per clip (Korean + English both fine). Set `V2C_LANG=ko` to pin it for Korean-only use |
+| `V2C_TRANSLATE` | `0` | `1` translates the speech to English (`task="translate"`); default transcribes in the spoken language. Same as `--translate` |
 | `V2C_DEVICE` | `cpu` | `cpu` \| `cuda` \| `auto` |
 | `V2C_COMPUTE` | auto | picked from what CTranslate2 reports for the device: `float16` on a card that does it efficiently, else `int8`. Set it only to force something else |
 | `V2C_MIC` | system default | which input to record from: a device index or a substring of its name (`V2C_MIC=Britz`). List them with `python -c "import sounddevice as sd; print(sd.query_devices())"` |
@@ -116,10 +120,16 @@ the server up across reboots, wrap `v2c --serve --http` in a systemd unit.
 
 - **Cold start:** the first call downloads (~460 MB) and loads the model (~5 s),
   then caches it for the process — reuse one process for repeated calls.
-- **Direction:** whisper's translate task only ever produces **English**.
+- **Default is transcription:** output stays in the spoken language. `--translate`
+  (whisper's `task="translate"`) only ever produces **English**, whatever the
+  source.
 - **Mixed KO/EN:** with `V2C_LANG` unset, whisper detects the language per clip;
-  measured ko-probability stays 0.93–0.99 on the short `voice_kor_*` samples and
-  English clips come back verbatim.
+  measured ko-probability stays 0.93–0.99 on the short `voice_kor_*` samples.
+- **Homonyms only bite `--translate`:** one-pass translate can't tell 사과
+  (apple / apology) apart — `사과 주세요` comes back "Please apologize" and no
+  `initial_prompt` hint fixes it. Plain transcription gets the Korean right;
+  the loss is in whisper's translation head. `voice_kor_apple.wav` is the
+  regression case.
 - `sample/` holds TTS clips: `voice_kor*` (Korean) and `voice_eng_*` (the English
   match) for carrot / banana / lemon / pineapple / apple, plus `voice.m4a`
   (another English one). Each `voice_kor_*` / `voice_eng_<fruit>` pair says the

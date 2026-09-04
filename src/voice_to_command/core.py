@@ -1,9 +1,10 @@
-"""Korean (or English) speech -> English text, in one step, via faster-whisper.
+"""Speech -> text via faster-whisper.
 
-whisper's task="translate" takes speech in any supported language and emits
-English. Source language is auto-detected so Korean and English clips both work;
-set V2C_LANG (e.g. "ko") to pin it. Hand it a file path or raw mic samples.
-That's the whole library.
+By default it transcribes in the language spoken -- Korean stays Korean, English
+stays English -- with the source language auto-detected (pin it with V2C_LANG,
+e.g. "ko"). Pass translate=True (CLI: --translate, env: V2C_TRANSLATE=1) to emit
+English instead, via whisper's task="translate". Input is a file path or raw mic
+samples.
 
 Per-stage timing goes to stderr as `[timing] <stage>: <s>` lines; set
 V2C_TIMING=0 to silence them.
@@ -27,16 +28,23 @@ DEVICE = os.environ.get("V2C_DEVICE") or "cpu"  # cpu | cuda | auto
 # None -> _load() asks CTranslate2 what this card actually supports. Set
 # V2C_COMPUTE only to force something else.
 COMPUTE = os.environ.get("V2C_COMPUTE") or None
-# Source language. None -> whisper auto-detects per clip (Korean and English both
-# translate to English cleanly). Set V2C_LANG="ko" to pin it for Korean-only use.
+# Source language. None -> whisper auto-detects per clip. Set V2C_LANG="ko" to
+# pin it for Korean-only use.
 LANG = os.environ.get("V2C_LANG") or None
 
 _model = None
-_TIMING_OFF = {"0", "false", "no", "off", ""}
+_FALSEY = {"0", "false", "no", "off", ""}
+# Translate the speech to English (task="translate"). Off by default -> the
+# output stays in the spoken language. V2C_TRANSLATE=1 / --translate turns it on.
+TRANSLATE = (os.environ.get("V2C_TRANSLATE") or "").strip().lower() not in _FALSEY
+
+
+def _task(translate) -> str:
+    return "translate" if (TRANSLATE if translate is None else translate) else "transcribe"
 
 
 def _log(stage: str, seconds: float, note: str = "") -> None:
-    if os.environ.get("V2C_TIMING", "1").strip().lower() not in _TIMING_OFF:
+    if os.environ.get("V2C_TIMING", "1").strip().lower() not in _FALSEY:
         tail = " {}".format(note) if note else ""
         print("[timing] {}: {:.2f}s{}".format(stage, seconds, tail), file=sys.stderr, flush=True)
 
@@ -95,7 +103,7 @@ def _load():
     return _model
 
 
-def warmup() -> None:
+def warmup(translate: bool | None = None) -> None:
     """Load the model and run one throwaway inference, so the first real
     `transcribe()` pays only infer time. Call once at process start; then keep
     the process alive and call `transcribe()` back-to-back.
@@ -108,17 +116,19 @@ def warmup() -> None:
     # is produced and the encoder never runs -- which hides a broken CUDA setup
     # until the first real recording. Consume the generator so it actually runs.
     segments, _ = model.transcribe(
-        np.zeros(16000, dtype=np.float32), language=LANG, task="translate", vad_filter=False
+        np.zeros(16000, dtype=np.float32), language=LANG, task=_task(translate), vad_filter=False
     )
     list(segments)
     _log("warmup", time.perf_counter() - t0, "({}/{})".format(DEVICE, COMPUTE))
 
 
-def transcribe(audio: Union[str, "np.ndarray"]) -> str:
-    """Korean speech -> English text.
+def transcribe(audio: Union[str, "np.ndarray"], translate: bool | None = None) -> str:
+    """Speech -> text.
 
     `audio` is an audio file path (wav/m4a/mp3/... -- faster-whisper decodes it)
-    or 16 kHz mono float32 samples (as returned by `record()`).
+    or 16 kHz mono float32 samples (as returned by `record()`). Returns text in
+    the spoken language; pass `translate=True` to translate it to English.
+    `translate=None` follows the V2C_TRANSLATE env var (default: off).
     """
     cold = _model is None
     t0 = time.perf_counter()
@@ -129,7 +139,7 @@ def transcribe(audio: Union[str, "np.ndarray"]) -> str:
     segments, _ = model.transcribe(
         audio,
         language=LANG,
-        task="translate",
+        task=_task(translate),
         vad_filter=True,  # trims silence, cuts hallucination on short clips
         condition_on_previous_text=False,
     )

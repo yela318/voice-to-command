@@ -16,18 +16,16 @@ SAMPLE_RATE = 16000  # what whisper expects
 # onboard analog jack rather than the USB headset you actually mean.
 MIC = os.environ.get("V2C_MIC") or None
 
+_input = None  # (device, rate): resolved and announced once, then reused
 
-def record(sample_rate: int = SAMPLE_RATE) -> np.ndarray:
-    """Block for a push-to-talk recording; return 16 kHz mono float32 samples."""
-    try:
-        import sounddevice as sd
-    except OSError as exc:  # PortAudio missing
-        raise RuntimeError(
-            "microphone capture needs PortAudio "
-            "(Linux: apt-get install libportaudio2, Mac: brew install portaudio); " + str(exc)
-        ) from exc
-    except ImportError as exc:
-        raise RuntimeError("microphone capture needs the [mic] extra: pip install -e .[mic]") from exc
+
+def _prepare(sd, sample_rate: int):
+    """Resolve the input device + capture rate, print it once. Cached for the
+    life of the process, so `--serve`'s record loop doesn't re-announce the mic
+    on every turn (re-plug a device -> restart)."""
+    global _input
+    if _input is not None:
+        return _input
 
     device = int(MIC) if MIC and MIC.isdigit() else MIC
     info = sd.query_devices(device, kind="input")  # raises if the name matches nothing
@@ -46,6 +44,23 @@ def record(sample_rate: int = SAMPLE_RATE) -> np.ndarray:
         ),
         file=sys.stderr,
     )
+    _input = (device, rate)
+    return _input
+
+
+def record(sample_rate: int = SAMPLE_RATE) -> np.ndarray:
+    """Block for a push-to-talk recording; return 16 kHz mono float32 samples."""
+    try:
+        import sounddevice as sd
+    except OSError as exc:  # PortAudio missing
+        raise RuntimeError(
+            "microphone capture needs PortAudio "
+            "(Linux: apt-get install libportaudio2, Mac: brew install portaudio); " + str(exc)
+        ) from exc
+    except ImportError as exc:
+        raise RuntimeError("microphone capture needs the [mic] extra: pip install -e .[mic]") from exc
+
+    device, rate = _prepare(sd, sample_rate)
 
     input("Press Enter to start recording...")
     print("Recording... press Enter again to stop.", flush=True)

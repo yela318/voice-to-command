@@ -16,8 +16,9 @@ def server(monkeypatch):
     """A real _Handler on an ephemeral port; core.transcribe is faked."""
     seen = {}
 
-    def fake_transcribe(audio):
+    def fake_transcribe(audio, translate=None):
         seen["audio"] = audio
+        seen["translate"] = translate
         return "please give me a carrot"
 
     monkeypatch.setattr("voice_to_command.core.transcribe", fake_transcribe)
@@ -48,12 +49,22 @@ def test_samples_roundtrip(server):
     got = seen["audio"]
     assert isinstance(got, np.ndarray) and got.dtype == np.dtype("<f4")
     np.testing.assert_allclose(got, samples, atol=1e-7)
+    assert seen["translate"] is False
+
+
+def test_translate_flag_is_forwarded(server, tmp_path):
+    ip, port, seen = server
+    path = tmp_path / "clip.bin"
+    path.write_bytes(b"RIFFfake")
+
+    remote.transcribe_remote(str(path), ip, port, translate=True)
+    assert seen["translate"] is True
 
 
 def test_server_error_is_raised(server, monkeypatch):
     ip, port, _ = server
 
-    def boom(_audio):
+    def boom(_audio, translate=None):
         raise ValueError("bad frame")
 
     monkeypatch.setattr("voice_to_command.core.transcribe", boom)

@@ -1,8 +1,9 @@
-"""`v2c` -- Korean speech to English text.
+"""`v2c` -- speech to text (Korean stays Korean, English stays English).
 
-    v2c sample/voice_kor.m4a   # a file  -> English text on stdout
-    v2c --listen               # the mic -> English text on stdout (one shot)
+    v2c sample/voice_kor.m4a   # a file  -> text on stdout
+    v2c --listen               # the mic -> text on stdout (one shot)
     v2c --serve                # stay resident: warm the model once, then loop
+    v2c --translate            # translate the speech to English instead
     v2c --serve --http         # GPU box: HTTP inference server for remote clients
     v2c <file> --server_ip HOST # run inference on that remote server, not locally
 """
@@ -15,7 +16,7 @@ import sys
 from typing import Callable, List, Optional
 
 from . import __version__
-from .core import warmup
+from .core import TRANSLATE, warmup
 
 
 def _serve(transcribe: Callable[..., str], warm: bool = True) -> int:
@@ -41,10 +42,16 @@ def _serve(transcribe: Callable[..., str], warm: bool = True) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    p = argparse.ArgumentParser(prog="v2c", description="Korean speech -> English text (whisper)")
+    p = argparse.ArgumentParser(prog="v2c", description="speech -> text (whisper)")
     p.add_argument("audio", nargs="?", help="audio file (wav/m4a/mp3/...)")
     p.add_argument("--listen", action="store_true", help="record one clip from the microphone")
     p.add_argument("--serve", action="store_true", help="stay resident: warm once, then loop")
+    p.add_argument(
+        "--translate",
+        action="store_true",
+        help="translate the speech to English (default: transcribe in the spoken language; "
+        "env: V2C_TRANSLATE=1)",
+    )
     p.add_argument(
         "--http", action="store_true", help="with --serve: HTTP inference server for remote clients"
     )
@@ -63,6 +70,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     ip = args.server_ip or os.environ.get("V2C_SERVER_IP")
     port = args.server_port or int(os.environ.get("V2C_SERVER_PORT") or 8756)
+    translate = args.translate or TRANSLATE
 
     if args.http and not args.serve:
         p.error("--http only makes sense with --serve")
@@ -78,10 +86,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         from .remote import transcribe_remote
 
         def run(audio):
-            return transcribe_remote(audio, ip, port)
+            return transcribe_remote(audio, ip, port, translate=translate)
 
     else:
-        from .core import transcribe as run
+        from .core import transcribe
+
+        def run(audio):
+            return transcribe(audio, translate=translate)
 
     if not (args.serve or args.listen or args.audio):
         p.error("give an audio file, or --listen / --serve for the microphone")

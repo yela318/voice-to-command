@@ -9,8 +9,10 @@ SSH tunnel across anything less trusted.
 Wire protocol:
   GET  /            -> 200 "ok"           (health check)
   POST /transcribe  -> 200 {"text": ...}  or  {"error": ...}
-      header X-V2C-Format: "file" (default) -- body is an audio file
-                          "f32"             -- body is raw float32 mono @16 kHz
+      header X-V2C-Format:    "file" (default) -- body is an audio file
+                              "f32"            -- raw float32 mono @16 kHz
+      header X-V2C-Translate: "1" translate to English, "0" keep the spoken
+                              language, absent -> the server's own default
 """
 
 from __future__ import annotations
@@ -38,9 +40,11 @@ class _Handler(BaseHTTPRequestHandler):
 
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         fmt = self.headers.get("X-V2C-Format", "file")
+        xlate = self.headers.get("X-V2C-Translate")
+        translate = None if xlate is None else xlate == "1"
         try:
             audio = np.frombuffer(body, dtype="<f4") if fmt == "f32" else io.BytesIO(body)
-            payload = {"text": transcribe(audio)}
+            payload = {"text": transcribe(audio, translate=translate)}
         except Exception as exc:  # report, don't crash the server
             payload = {"error": "{}: {}".format(type(exc).__name__, exc)}
         self._reply(200, json.dumps(payload).encode("utf-8"), "application/json")
@@ -74,10 +78,15 @@ def serve_http(port: int = DEFAULT_PORT, host: str = None) -> int:
 
 
 def transcribe_remote(
-    audio: Union[str, "np.ndarray"], ip: str, port: int = DEFAULT_PORT, timeout: float = 120.0
+    audio: Union[str, "np.ndarray"],
+    ip: str,
+    port: int = DEFAULT_PORT,
+    translate: bool = False,
+    timeout: float = 120.0,
 ) -> str:
     """Send `audio` (a file path or float32 samples) to a `v2c --serve --http`
-    box at `ip:port` and return the recognised text.
+    box at `ip:port` and return the recognised text. `translate=True` asks the
+    server to translate it to English.
     """
     import urllib.error
     import urllib.request
@@ -90,7 +99,13 @@ def transcribe_remote(
 
     url = "http://{}:{}/transcribe".format(ip, port)
     req = urllib.request.Request(
-        url, data=body, headers={"Content-Type": "application/octet-stream", "X-V2C-Format": fmt}
+        url,
+        data=body,
+        headers={
+            "Content-Type": "application/octet-stream",
+            "X-V2C-Format": fmt,
+            "X-V2C-Translate": "1" if translate else "0",
+        },
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:

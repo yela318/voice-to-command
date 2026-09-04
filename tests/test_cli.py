@@ -29,14 +29,27 @@ def test_http_without_serve_errors(capsys):
 def test_server_ip_routes_to_remote(monkeypatch, capsys):
     calls = {}
 
-    def fake_remote(audio, ip, port):
-        calls["args"] = (audio, ip, port)
+    def fake_remote(audio, ip, port, translate=False):
+        calls["args"] = (audio, ip, port, translate)
         return "hi"
 
     monkeypatch.setattr("voice_to_command.remote.transcribe_remote", fake_remote)
     assert main(["clip.wav", "--server_ip", "gpu-box", "--server_port", "9000"]) == 0
-    assert calls["args"] == ("clip.wav", "gpu-box", 9000)
+    assert calls["args"] == ("clip.wav", "gpu-box", 9000, False)
     assert capsys.readouterr().out.strip() == "hi"
+
+
+def test_translate_flag_reaches_transcribe(monkeypatch, capsys):
+    calls = {}
+
+    def fake_transcribe(audio, translate=None):
+        calls["translate"] = translate
+        return "carrot"
+
+    monkeypatch.setattr("voice_to_command.core.transcribe", fake_transcribe)
+    assert main(["clip.wav", "--translate"]) == 0
+    assert calls["translate"] is True
+    assert capsys.readouterr().out.strip() == "carrot"
 
 
 def test_serve_http_invokes_server(monkeypatch):
