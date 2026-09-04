@@ -1,8 +1,9 @@
-"""Korean speech -> English text, in one step, via faster-whisper.
+"""Korean (or English) speech -> English text, in one step, via faster-whisper.
 
 whisper's task="translate" takes speech in any supported language and emits
-English. We pin the source language to Korean and hand it a file path or raw
-mic samples. That's the whole library.
+English. Source language is auto-detected so Korean and English clips both work;
+set V2C_LANG (e.g. "ko") to pin it. Hand it a file path or raw mic samples.
+That's the whole library.
 
 Per-stage timing goes to stderr as `[timing] <stage>: <s>` lines; set
 V2C_TIMING=0 to silence them.
@@ -26,6 +27,9 @@ DEVICE = os.environ.get("V2C_DEVICE") or "cpu"  # cpu | cuda | auto
 # None -> _load() asks CTranslate2 what this card actually supports. Set
 # V2C_COMPUTE only to force something else.
 COMPUTE = os.environ.get("V2C_COMPUTE") or None
+# Source language. None -> whisper auto-detects per clip (Korean and English both
+# translate to English cleanly). Set V2C_LANG="ko" to pin it for Korean-only use.
+LANG = os.environ.get("V2C_LANG") or None
 
 _model = None
 _TIMING_OFF = {"0", "false", "no", "off", ""}
@@ -104,7 +108,7 @@ def warmup() -> None:
     # is produced and the encoder never runs -- which hides a broken CUDA setup
     # until the first real recording. Consume the generator so it actually runs.
     segments, _ = model.transcribe(
-        np.zeros(16000, dtype=np.float32), language="ko", task="translate", vad_filter=False
+        np.zeros(16000, dtype=np.float32), language=LANG, task="translate", vad_filter=False
     )
     list(segments)
     _log("warmup", time.perf_counter() - t0, "({}/{})".format(DEVICE, COMPUTE))
@@ -124,7 +128,7 @@ def transcribe(audio: Union[str, "np.ndarray"]) -> str:
     t1 = time.perf_counter()
     segments, _ = model.transcribe(
         audio,
-        language="ko",
+        language=LANG,
         task="translate",
         vad_filter=True,  # trims silence, cuts hallucination on short clips
         condition_on_previous_text=False,

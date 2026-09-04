@@ -1,8 +1,9 @@
 # voice-to-command
 
-Korean speech → English text, in one step, via
+Korean (or English) speech → English text, in one step, via
 [faster-whisper](https://github.com/SYSTRAN/faster-whisper) (`task="translate"`).
-Give it a mic recording or an audio file; get back an English string. Whatever
+Give it a mic recording or an audio file; get back an English string. The source
+language is auto-detected, so Korean and English clips both work. Whatever
 consumes the string is wired up elsewhere.
 
 ## Install
@@ -16,7 +17,7 @@ pip install -e .          # add .[mic] for microphone input
 ## Use
 
 ```bash
-v2c voice_kor.m4a         # a file → English text on stdout
+v2c sample/voice_kor.m4a  # a file → English text on stdout
 v2c --listen             # the mic (Enter to start, Enter to stop) → English text
 v2c --serve              # stay resident: warm the model once, then loop
 ```
@@ -30,7 +31,7 @@ EOF quits.
 ```python
 from voice_to_command import transcribe, record
 
-transcribe("voice_kor.m4a")     # -> "Please give me carrots."
+transcribe("sample/voice_kor.m4a")   # -> "Please give me carrots."
 transcribe(record())            # microphone
 ```
 
@@ -61,6 +62,7 @@ Per-stage timing goes to stderr:
 | var | default | |
 |---|---|---|
 | `V2C_MODEL` | `small` | faster-whisper size; multilingual only (no `.en`). `tiny`/`base` mis-hear Korean |
+| `V2C_LANG` | auto | source language. Unset = auto-detect per clip (Korean + English both fine). Set `V2C_LANG=ko` to pin it for Korean-only use |
 | `V2C_DEVICE` | `cpu` | `cpu` \| `cuda` \| `auto` |
 | `V2C_COMPUTE` | auto | picked from what CTranslate2 reports for the device: `float16` on a card that does it efficiently, else `int8`. Set it only to force something else |
 | `V2C_MIC` | system default | which input to record from: a device index or a substring of its name (`V2C_MIC=Britz`). List them with `python -c "import sounddevice as sd; print(sd.query_devices())"` |
@@ -87,8 +89,13 @@ V2C_DEVICE=cuda v2c --serve
 - **Cold start:** the first call downloads (~460 MB) and loads the model (~5 s),
   then caches it for the process — reuse one process for repeated calls.
 - **Direction:** whisper's translate task only ever produces **English**.
-- `voice_kor.m4a` is a sample recording ("당근을 주세요"); `voice.m4a` is an
-  English one.
+- **Mixed KO/EN:** with `V2C_LANG` unset, whisper detects the language per clip;
+  measured ko-probability stays 0.93–0.99 on the short `voice_kor_*` samples and
+  English clips come back verbatim.
+- `sample/` holds TTS clips: `voice_kor*` (Korean) and `voice_eng_*` (the English
+  match) for carrot / banana / lemon / pineapple / apple, plus `voice.m4a`
+  (another English one). Each `voice_kor_*` / `voice_eng_<fruit>` pair says the
+  same thing in the two languages.
 
 ## Layout
 
@@ -97,6 +104,7 @@ src/voice_to_command/
   core.py      _load() caches the model; transcribe(path | samples) -> str
   capture.py   record() — push-to-talk mic, returns float32 samples
   cli.py       v2c <file> | v2c --listen
+sample/        TTS clips: voice_kor* / voice_eng_* pairs, voice.m4a
 ```
 
 MIT licensed — see [LICENSE](LICENSE).

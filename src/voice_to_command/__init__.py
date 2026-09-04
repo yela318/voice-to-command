@@ -2,7 +2,7 @@
 
     from voice_to_command import transcribe, record
 
-    transcribe("voice_kor.m4a")   # file  -> "Please give me carrots."
+    transcribe("sample/voice_kor.m4a")   # file  -> "Please give me carrots."
     transcribe(record())          # mic   -> English text
 
 whisper's task="translate" does the Korean -> English in one pass. Whatever

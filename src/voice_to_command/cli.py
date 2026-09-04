@@ -1,6 +1,6 @@
 """`v2c` -- Korean speech to English text.
 
-    v2c voice_kor.m4a      # a file  -> English text on stdout
+    v2c sample/voice_kor.m4a   # a file  -> English text on stdout
     v2c --listen           # the mic -> English text on stdout (one shot)
     v2c --serve            # stay resident: warm the model once, then loop
 """
