@@ -62,6 +62,14 @@ Per-stage timing goes to stderr:
 [timing] total: 8.04s
 ```
 
+Over a remote server the server logs the full server-side breakdown per request
+— `recv` (reading the upload), then `model_load` / `infer` / `total`, then
+`request` (the whole handler) — plus the recognised sentence on its stdout. The
+**client** logs one extra `[timing] remote: <s>` for the round trip as the
+caller sees it (server-side `request` + both network legs). `V2C_TIMING=0`
+silences whichever side it is set on — set it on the client to keep all timing
+on the server.
+
 ## Config (env vars)
 
 | var | default | |
@@ -115,6 +123,20 @@ export V2C_SERVER_IP=gpu-box                  # or set it once and drop the flag
 Across an untrusted network, tunnel instead of exposing the port:
 `ssh -N -L 8756:localhost:8756 gpu-box`, then `--server_ip 127.0.0.1`. To keep
 the server up across reboots, wrap `v2c --serve --http` in a systemd unit.
+
+The server prints each recognised sentence to its own stdout. To consume the
+text in-process — feeding a planner, say — set `remote.on_text` and start the
+server yourself instead of via the `v2c` command:
+
+```python
+from voice_to_command import remote, serve_http
+
+remote.on_text = lambda text: planner.feed(text)   # called per utterance
+serve_http(port=8756)                              # V2C_DEVICE=cuda in the env
+```
+
+`on_text` runs inside the request handler, so push slow work to a queue if the
+client shouldn't wait for it.
 
 ## Notes
 

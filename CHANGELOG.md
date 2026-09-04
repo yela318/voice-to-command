@@ -30,7 +30,12 @@ Reduced to the minimum: **Korean speech → English text via faster-whisper
 - Remote GPU: `v2c --serve --http` runs a stdlib HTTP inference server on the
   GPU box; `--server_ip` / `--server_port` (env `V2C_SERVER_IP` /
   `V2C_SERVER_PORT`) make any client send audio there instead of loading the
-  model locally. New `remote.serve_http()` / `remote.transcribe_remote()`.
+  model locally. New `remote.serve_http()` / `remote.transcribe_remote()`. The
+  server prints each recognised sentence to its stdout and logs a full per-request
+  `[timing]` breakdown (`recv` / `model_load` / `infer` / `total` / `request`);
+  set `remote.on_text` to a callable to receive the text in-process (e.g. to feed
+  a planner). The client logs one `[timing] remote: <s>` for the round trip;
+  `V2C_TIMING=0` on the client keeps all timing on the server.
 - Sample clips moved to `sample/`; added `voice_eng_*` English matches for
   carrot / banana / lemon / pineapple / apple.
 
